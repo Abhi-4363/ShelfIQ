@@ -1,7 +1,6 @@
 /**
- * ShelfIQ - Retail Sales & Inventory Copilot
- * Production Frontend Application Script (Phase 7)
- * Consumes FastAPI backend endpoints cleanly.
+ * ShelfIQ v3.0 - Premium Dashboard Frontend
+ * Redesigned to match the executive dashboard UI
  */
 
 // Application State
@@ -13,138 +12,142 @@ const state = {
     inventoryData: [],
     salesData: null,
     attentionData: [],
-    isLoading: false,
-    error: null
+    storesList: [
+        { id: 'STR001', name: 'Hyderabad Central' },
+        { id: 'STR002', name: 'Banjara Hills' },
+        { id: 'STR003', name: 'Kukatpally' },
+        { id: 'STR004', name: 'Secunderabad' }
+    ]
 };
 
+const CATEGORY_COLORS = {
+    'Beverages':     '#2563EB',
+    'Groceries':     '#059669',
+    'Snacks':        '#F59E0B',
+    'Personal Care': '#EC4899',
+    'Household':     '#8B5CF6',
+    'Others':        '#64748B',
+    'Dairy':         '#06B6D4'
+};
+
+// ─── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
-    initGlobalControls();
     initModal();
-    loadPage(state.currentPage);
+    initAddProductForm();
+    initAddProductBtn();
+    loadPage('dashboard');
 });
 
-// -------------------------------------------------------------
-// NAVIGATION & GLOBAL CONTROLS
-// -------------------------------------------------------------
+// ─── Navigation ─────────────────────────────────────────────────────────────
 function initNavigation() {
-    const navItems = document.querySelectorAll('.nav-item[data-page]');
-    navItems.forEach(item => {
-        item.addEventListener('click', (e) => {
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+        item.addEventListener('click', e => {
             e.preventDefault();
-            const page = item.getAttribute('data-page');
-
-            navItems.forEach(nav => nav.classList.remove('active'));
+            const page = item.dataset.page;
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             item.classList.add('active');
-
             state.currentPage = page;
             loadPage(page);
         });
     });
 }
 
-function initGlobalControls() {
-    const storeSelect = document.getElementById('store-select');
-    const dateSelect = document.getElementById('date-range-select');
-    const refreshBtn = document.getElementById('btn-refresh');
-
-    if (storeSelect) {
-        storeSelect.addEventListener('change', (e) => {
-            state.selectedStore = e.target.value;
-            loadPage(state.currentPage);
-        });
-    }
-
-    if (dateSelect) {
-        dateSelect.addEventListener('change', (e) => {
-            state.selectedDateRange = e.target.value;
-            loadPage(state.currentPage);
-        });
-    }
-
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-            loadPage(state.currentPage);
-        });
-    }
-}
-
+// ─── Modal ──────────────────────────────────────────────────────────────────
 function initModal() {
     const modal = document.getElementById('product-modal');
     const closeBtn = document.getElementById('modal-close');
-
     if (closeBtn && modal) {
         closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.classList.add('hidden');
-        });
+        modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
     }
 }
 
-// -------------------------------------------------------------
-// PAGE ROUTER & DATA FETCHING
-// -------------------------------------------------------------
+// ─── Add Product Button ──────────────────────────────────────────────────────
+function initAddProductBtn() {
+    document.addEventListener('click', e => {
+        if (e.target.closest('#btn-add-product')) {
+            document.getElementById('add-product-modal').classList.remove('hidden');
+            document.getElementById('add-product-result').classList.add('hidden');
+            document.getElementById('add-product-form').reset();
+        }
+    });
+}
+
+// ─── Add Product Form ────────────────────────────────────────────────────────
+function initAddProductForm() {
+    const form = document.getElementById('add-product-form');
+    if (!form) return;
+    form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-add-product-submit');
+        const resultDiv = document.getElementById('add-product-result');
+        btn.disabled = true;
+        btn.textContent = 'Adding...';
+
+        const payload = {
+            product_name: document.getElementById('ap-name').value.trim(),
+            category: document.getElementById('ap-category').value,
+            unit_price: parseFloat(document.getElementById('ap-price').value),
+            cost_price: parseFloat(document.getElementById('ap-cost').value),
+            store_id: document.getElementById('ap-store').value || null,
+            initial_stock: parseInt(document.getElementById('ap-stock').value) || 50
+        };
+
+        try {
+            const res = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                resultDiv.className = 'recommendation-box';
+                resultDiv.textContent = `✅ Product "${data.product?.product_name || payload.product_name}" added successfully!`;
+                resultDiv.classList.remove('hidden');
+                setTimeout(() => {
+                    document.getElementById('add-product-modal').classList.add('hidden');
+                    if (state.currentPage === 'inventory') loadPage('inventory');
+                }, 1800);
+            } else {
+                throw new Error(data.detail || 'Failed to add product');
+            }
+        } catch (err) {
+            resultDiv.className = 'evidence-box';
+            resultDiv.style.color = 'var(--red-text)';
+            resultDiv.textContent = `❌ Error: ${err.message}`;
+            resultDiv.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '+ Add Product';
+        }
+    });
+}
+
+// ─── Page Router ────────────────────────────────────────────────────────────
 async function loadPage(pageName) {
-    const titleEl = document.getElementById('page-title');
-    const subtitleEl = document.getElementById('page-subtitle');
     const viewport = document.getElementById('content-viewport');
-
-    const pageTitles = {
-        dashboard: { title: 'Dashboard', subtitle: "Good morning. Here's what needs your attention today." },
-        inventory: { title: 'Inventory Management', subtitle: 'Monitor stock levels, sales velocity, and stock-out risks.' },
-        sales: { title: 'Sales Analytics', subtitle: 'Analyze revenue, units sold, and performance trends.' },
-        attention: { title: 'Attention Required', subtitle: 'Critical operational findings, evidence, and recommendations.' },
-        copilot: { title: 'Ask ShelfIQ', subtitle: 'Ask questions about your sales, inventory, and store operations.' },
-        settings: { title: 'System Settings', subtitle: 'Dataset status and application configuration.' }
-    };
-
-    const config = pageTitles[pageName] || { title: 'ShelfIQ', subtitle: '' };
-    if (titleEl) titleEl.textContent = config.title;
-    if (subtitleEl) subtitleEl.textContent = config.subtitle;
-
-    // Show loading state
-    viewport.innerHTML = `
-        <div class="loading-state">
-            <h3>⏳ Loading store data...</h3>
-            <p style="margin-top: 8px;">Fetching latest metrics from backend.</p>
-        </div>
-    `;
+    viewport.innerHTML = `<div class="loading-state" style="margin:24px 28px;"><h3>⏳ Loading...</h3></div>`;
 
     try {
-        // Fetch attention badge count in background
         fetchAttentionBadge();
-
         switch (pageName) {
-            case 'dashboard':
-                await renderDashboardPage(viewport);
-                break;
-            case 'inventory':
-                await renderInventoryPage(viewport);
-                break;
-            case 'sales':
-                await renderSalesPage(viewport);
-                break;
-            case 'attention':
-                await renderAttentionPage(viewport);
-                break;
-            case 'copilot':
-                renderCopilotPage(viewport);
-                break;
-            case 'settings':
-                await renderSettingsPage(viewport);
-                break;
-            default:
-                await renderDashboardPage(viewport);
+            case 'dashboard': await renderDashboardPage(viewport); break;
+            case 'inventory': await renderInventoryPage(viewport); break;
+            case 'sales':     await renderSalesPage(viewport); break;
+            case 'attention': await renderAttentionPage(viewport); break;
+            case 'copilot':   renderCopilotPage(viewport); break;
+            case 'settings':  await renderSettingsPage(viewport); break;
+            default:          await renderDashboardPage(viewport);
         }
     } catch (err) {
-        console.error("Error loading page:", err);
+        console.error('Page load error:', err);
         viewport.innerHTML = `
-            <div class="error-state">
-                <h3>Unable to load ${escapeHTML(config.title)}</h3>
-                <p style="margin-top: 8px;">Unable to connect to ShelfIQ. Please try again.</p>
-                <button class="btn btn-secondary" onclick="loadPage('${pageName}')" style="margin-top: 16px;">Try Again</button>
-            </div>
-        `;
+            <div class="error-state" style="margin:24px 28px;">
+                <h3>Unable to load page</h3>
+                <p style="margin-top:8px;">Cannot connect to ShelfIQ backend.</p>
+                <button class="btn btn-secondary" onclick="loadPage('${pageName}')" style="margin-top:16px;">Try Again</button>
+            </div>`;
     }
 }
 
@@ -152,362 +155,738 @@ async function fetchAttentionBadge() {
     try {
         const url = state.selectedStore !== 'all' ? `/api/attention?store_id=${state.selectedStore}` : '/api/attention';
         const res = await fetch(url);
-        if (res.ok) {
-            const data = await res.json();
-            const badge = document.getElementById('attention-badge');
-            if (badge) {
-                const count = data.count || 0;
-                badge.textContent = count;
-                if (count > 0) badge.classList.remove('hidden');
-                else badge.classList.add('hidden');
-            }
+        if (!res.ok) return;
+        const data = await res.json();
+        const badge = document.getElementById('attention-badge');
+        const notifBadge = document.getElementById('notif-badge');
+        const count = data.count || 0;
+        if (badge) {
+            badge.textContent = count;
+            count > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
         }
-    } catch (e) {
-        // Silent catch for background badge
-    }
+        if (notifBadge) {
+            const critCount = data.severity_counts ? (data.severity_counts.CRITICAL || 0) : 0;
+            notifBadge.textContent = critCount;
+            critCount > 0 ? notifBadge.classList.remove('hidden') : notifBadge.classList.add('hidden');
+        }
+    } catch (_) { /* silent */ }
 }
 
-// -------------------------------------------------------------
-// PAGE 1: DASHBOARD
-// -------------------------------------------------------------
+// ─── Build params ────────────────────────────────────────────────────────────
 function buildSalesQueryParams() {
     const params = new URLSearchParams();
     if (state.selectedStore !== 'all') params.set('store_id', state.selectedStore);
-
     const endDate = '2026-08-29';
-    const ranges = {
-        last_30_days: '2026-07-31',
-        last_14_days: '2026-08-16',
-        last_7_days: '2026-08-23'
-    };
+    const ranges = { last_30_days: '2026-07-31', last_14_days: '2026-08-16', last_7_days: '2026-08-23' };
     if (state.selectedDateRange !== 'all' && ranges[state.selectedDateRange]) {
         params.set('start_date', ranges[state.selectedDateRange]);
         params.set('end_date', endDate);
     }
-
-    const query = params.toString();
-    return query ? `?${query}` : '';
+    const q = params.toString();
+    return q ? `?${q}` : '';
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE 1: DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
 async function renderDashboardPage(container) {
     const storeParam = state.selectedStore !== 'all' ? `?store_id=${state.selectedStore}` : '';
-    const [summaryRes, attentionRes] = await Promise.all([
-        fetch(`/api/summary`),
-        fetch(`/api/attention${storeParam}`)
+    const [summaryRes, attentionRes, salesRes] = await Promise.all([
+        fetch('/api/summary'),
+        fetch(`/api/attention${storeParam}`),
+        fetch(`/api/sales${buildSalesQueryParams()}`)
     ]);
 
-    if (!summaryRes.ok || !attentionRes.ok) throw new Error("Failed to fetch dashboard data.");
+    if (!summaryRes.ok) throw new Error('Failed to fetch dashboard data.');
 
     const summary = await summaryRes.json();
-    const attention = await attentionRes.json();
+    const attention = attentionRes.ok ? await attentionRes.json() : { attention_items: [], severity_counts: {}, count: 0 };
+    const salesData = salesRes.ok ? await salesRes.json() : { daily_trend: [], product_performance: [], sales_growth: {} };
 
     state.summaryData = summary;
     state.attentionData = attention.attention_items || [];
 
-    const storeSummary = state.selectedStore !== 'all' 
-        ? summary.stores_summary.find(s => s.store_id === state.selectedStore) || summary
-        : summary;
+    const totalSales = state.selectedStore !== 'all'
+        ? (summary.stores_summary?.find(s => s.store_id === state.selectedStore)?.total_sales_amount || summary.total_sales)
+        : summary.total_sales;
 
-    const totalSales = state.selectedStore !== 'all' ? storeSummary.total_sales_amount : summary.total_sales;
-    const invValue = state.selectedStore !== 'all' ? storeSummary.inventory_value : summary.inventory_value;
-    const critCount = attention.severity_counts ? (attention.severity_counts.CRITICAL + attention.severity_counts.HIGH) : 0;
+    const invValue = state.selectedStore !== 'all'
+        ? (summary.stores_summary?.find(s => s.store_id === state.selectedStore)?.inventory_value || summary.inventory_value)
+        : summary.inventory_value;
 
-    const topAttentions = (attention.attention_items || []).slice(0, 5);
-    const salesRes = await fetch(`/api/sales${buildSalesQueryParams()}`);
-    const salesData = salesRes.ok ? await salesRes.json() : { daily_trend: [], product_performance: [], sales_growth: summary.sales_growth };
+    const critCount = (attention.severity_counts?.CRITICAL || 0) + (attention.severity_counts?.HIGH || 0);
+    const salesGrowth = salesData.sales_growth || summary.sales_growth || {};
+    const growthValue = salesGrowth.percentage_change;
+    const growthDisplay = growthValue === null || growthValue === undefined
+        ? 'N/A'
+        : `${growthValue > 0 ? '+' : ''}${growthValue}%`;
+    const growthUp = growthValue >= 0;
+
+    // Top products
     const topProducts = [...(salesData.product_performance || [])]
         .sort((a, b) => b.total_sales_amount - a.total_sales_amount)
         .slice(0, 5);
-    const salesGrowth = salesData.sales_growth || summary.sales_growth || {};
-    const growthValue = salesGrowth.percentage_change;
-    const growthDisplay = growthValue === null || growthValue === undefined ? 'N/A' : `${growthValue > 0 ? '+' : ''}${growthValue}%`;
 
-    // Build top products ranked list HTML
-    const maxRevenue = topProducts.length > 0 ? topProducts[0].total_sales_amount : 1;
-    const rankColors = ['#2563EB', '#7C3AED', '#059669', '#D97706', '#DC2626'];
-    const rankEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+    // Category distribution from products
+    const catMap = {};
+    (salesData.product_performance || []).forEach(p => {
+        catMap[p.category] = (catMap[p.category] || 0) + p.total_sales_amount;
+    });
+    const totalCatSales = Object.values(catMap).reduce((s, v) => s + v, 0) || 1;
+    const categories = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
-    const topProductCardsHTML = topProducts.map((p, i) => {
-        const barPct = Math.max(8, Math.round((p.total_sales_amount / maxRevenue) * 100));
-        const color = rankColors[i] || '#64748B';
-        return `
-            <div class="top-product-card" onclick="openProductModal('${p.product_id}')" title="Click to view details">
-                <div class="top-product-rank" style="background:${color};">${i + 1}</div>
-                <div class="top-product-info">
-                    <div class="top-product-name">${escapeHTML(p.product_name)}</div>
-                    <div class="top-product-meta">
-                        <span class="top-product-category">${escapeHTML(p.category)}</span>
-                        <span class="top-product-units">${formatNumber(p.total_units_sold)} units</span>
+    // Inventory health
+    const totalItems = (summary.total_products || 0) * (summary.total_stores || 1);
+    const critItems = attention.severity_counts?.CRITICAL || 0;
+    const highItems = attention.severity_counts?.HIGH || 0;
+    const lowStock = critItems + highItems;
+    const outOfStock = critItems;
+    const inStock = Math.max(0, totalItems - lowStock);
+    const healthPct = totalItems > 0 ? Math.round((inStock / totalItems) * 100) : 78;
+
+    // Recent alerts (top 3)
+    const recentAlerts = (attention.attention_items || []).slice(0, 3);
+
+    // greeting
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    const greetIcon = hour < 12 ? '🌤️' : hour < 17 ? '☀️' : '🌙';
+
+    const storeName = state.selectedStore !== 'all'
+        ? (state.storesList.find(s => s.id === state.selectedStore)?.name || 'Selected Store')
+        : 'All Stores';
+
+    const dateLabel = summary.date_range
+        ? `${formatDateShort(summary.date_range.start_date)} - ${formatDateShort(summary.date_range.end_date)}`
+        : '';
+
+    container.innerHTML = `
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="page-greeting">
+                <div class="page-greeting-icon">${greetIcon}</div>
+                <div>
+                    <div class="page-greeting-title">${greeting}, Abhi!</div>
+                    <div class="page-greeting-sub">Here's what's happening with your store today.</div>
+                </div>
+            </div>
+            <div class="page-controls">
+                <div class="filter-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <select id="store-select" onchange="state.selectedStore=this.value;loadPage('dashboard');">
+                        <option value="all">All Stores</option>
+                        ${state.storesList.map(s => `<option value="${s.id}" ${state.selectedStore === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="filter-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span>${dateLabel}</span>
+                </div>
+                <button class="btn btn-primary" id="btn-add-product">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add Product
+                </button>
+            </div>
+        </div>
+
+        <div class="page-content">
+            <!-- KPI Grid -->
+            <div class="kpi-grid">
+                <div class="kpi-card kpi-card--revenue">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--blue">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                     </div>
-                    <div class="top-product-bar-wrap">
-                        <div class="top-product-bar" style="width:${barPct}%; background:${color};"></div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Total Revenue</div>
+                        <div class="kpi-value">${formatINR(totalSales)}</div>
+                        <div class="kpi-change up">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                            +12% vs previous period
+                        </div>
+                    </div>
+                    <div class="kpi-chart-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     </div>
                 </div>
-                <div class="top-product-revenue" style="color:${color};">${formatINR(p.total_sales_amount)}</div>
+
+                <div class="kpi-card kpi-card--growth">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--green">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                    </div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Sales Growth</div>
+                        <div class="kpi-value" style="color: ${growthUp ? 'var(--green)' : 'var(--red)'};">${growthDisplay}</div>
+                        <div class="kpi-change ${growthUp ? 'up' : 'down'}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="${growthUp ? '18 15 12 9 6 15' : '18 9 12 15 6 9'}"/></svg>
+                            ${growthDisplay} vs previous period
+                        </div>
+                    </div>
+                    <div class="kpi-chart-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
+                    </div>
+                </div>
+
+                <div class="kpi-card kpi-card--inventory">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--purple">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                    </div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Inventory Value</div>
+                        <div class="kpi-value">${formatINR(invValue)}</div>
+                        <div class="kpi-change up">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                            +5% vs previous period
+                        </div>
+                    </div>
+                    <div class="kpi-chart-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8"/></svg>
+                    </div>
+                </div>
+
+                <div class="kpi-card kpi-card--alerts">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--red">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                    </div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Urgent Issues</div>
+                        <div class="kpi-value" style="color: ${critCount > 0 ? 'var(--red)' : 'var(--green)'};">${critCount}</div>
+                        <div class="kpi-change ${critCount > 0 ? 'down' : 'up'}">
+                            Critical &amp; High severity alerts
+                            <a href="#attention" onclick="event.preventDefault();loadPage('attention');" style="margin-left:4px;font-size:11px;color:var(--primary);text-decoration:underline;">›</a>
+                        </div>
+                    </div>
+                    <div class="kpi-chart-btn" onclick="loadPage('attention')" title="View Alerts">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                </div>
             </div>
+
+            <!-- Main 3-column grid: Sales Trend | Category Donut | Quick Actions -->
+            <div class="dashboard-main-grid">
+                <!-- Sales Trend -->
+                <div class="section-card" style="grid-column: span 1;">
+                    <div class="section-header">
+                        <div>
+                            <div class="section-title">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                                Sales Trend
+                            </div>
+                        </div>
+                        <select class="period-select" onchange="state.selectedDateRange=this.value;loadPage('dashboard');">
+                            <option value="all">Last 3 Months</option>
+                            <option value="last_30_days">Last 30 Days</option>
+                            <option value="last_14_days">Last 14 Days</option>
+                            <option value="last_7_days">Last 7 Days</option>
+                        </select>
+                    </div>
+                    <div id="dashboard-chart-container" class="chart-container"></div>
+                    <div class="chart-legend">
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-dot" style="background:#2563EB;"></div> Revenue
+                        </div>
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-dot" style="background:#059669;"></div> Units Sold
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Distribution Donut -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Category Distribution
+                        </div>
+                    </div>
+                    <div class="donut-container">
+                        <div class="donut-chart-wrap">
+                            ${renderDonutSVG(categories, totalCatSales, invValue)}
+                        </div>
+                        <div class="donut-legend">
+                            ${categories.map(([cat, val]) => `
+                                <div class="donut-legend-item">
+                                    <div class="donut-legend-left">
+                                        <div class="donut-legend-dot" style="background:${CATEGORY_COLORS[cat] || '#64748B'};"></div>
+                                        ${escapeHTML(cat)}
+                                    </div>
+                                    <span class="donut-legend-pct">${Math.round((val / totalCatSales) * 100)}%</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            Quick Actions
+                        </div>
+                    </div>
+                    <div class="quick-actions-grid">
+                        <button class="quick-action-btn" id="btn-add-product">
+                            <div class="quick-action-icon" style="background:#EFF6FF;">➕</div>
+                            Add Product
+                        </button>
+                        <button class="quick-action-btn" onclick="loadPage('inventory')">
+                            <div class="quick-action-icon" style="background:#F0FDF4;">📦</div>
+                            Update Stock
+                        </button>
+                        <button class="quick-action-btn" onclick="loadPage('sales')">
+                            <div class="quick-action-icon" style="background:#FFF7ED;">🛒</div>
+                            Record Sale
+                        </button>
+                        <button class="quick-action-btn" onclick="loadPage('sales')">
+                            <div class="quick-action-icon" style="background:#FFF7ED;">📊</div>
+                            Generate Report
+                        </button>
+                        <button class="quick-action-btn" onclick="loadPage('attention')">
+                            <div class="quick-action-icon" style="background:#FEF2F2;">🔔</div>
+                            View Alerts
+                        </button>
+                        <button class="quick-action-btn" onclick="loadPage('copilot')">
+                            <div class="quick-action-icon" style="background:#F5F3FF;">🤖</div>
+                            AI Assistant
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom grid: Top Products | Right Panel -->
+            <div class="dashboard-bottom-grid">
+                <!-- Top Products Table -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <div>
+                            <div class="section-title">
+                                🏆 Top Products
+                            </div>
+                        </div>
+                        <a class="view-all-link" onclick="loadPage('inventory')">View All</a>
+                    </div>
+                    <div class="table-container">
+                        <table class="top-products-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:32px;">#</th>
+                                    <th>Product Name</th>
+                                    <th>Category</th>
+                                    <th class="number-cell">Units Sold</th>
+                                    <th class="number-cell">Revenue</th>
+                                    <th>Stock Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topProducts.map((p, i) => {
+                                    const emoji = ['🥇','🥈','🥉','4️⃣','5️⃣'][i] || (i + 1);
+                                    const stockStatus = p.status || 'HEALTHY';
+                                    const stockBadge = stockBadgeHTML(stockStatus);
+                                    return `
+                                        <tr onclick="openProductModal('${p.product_id}')">
+                                            <td><span class="rank-num">${i + 1}</span></td>
+                                            <td>
+                                                <div class="product-name-cell">
+                                                    <div class="product-img-placeholder">${getCatEmoji(p.category)}</div>
+                                                    <span class="product-name-text">${escapeHTML(p.product_name)}</span>
+                                                </div>
+                                            </td>
+                                            <td style="color:var(--text-secondary);">${escapeHTML(p.category)}</td>
+                                            <td class="number-cell">${formatNumber(p.total_units_sold)}</td>
+                                            <td class="number-cell" style="font-weight:700;">${formatINR(p.total_sales_amount)}</td>
+                                            <td>${stockBadge}</td>
+                                            <td>
+                                                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openProductModal('${p.product_id}')">
+                                                    ⋯
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('') || `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">No product data available.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right panel: Inventory Health + Recent Alerts -->
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                    <!-- Inventory Health -->
+                    <div class="section-card">
+                        <div class="section-header">
+                            <div class="section-title">
+                                ❤️ Inventory Health
+                            </div>
+                            <a class="view-all-link" onclick="loadPage('inventory')">View Details</a>
+                        </div>
+                        <div class="inv-health-donut-wrap">
+                            <div class="inv-health-donut-svg-wrap">
+                                ${renderHealthDonut(healthPct)}
+                                <div class="inv-health-center">
+                                    <div class="inv-health-pct">${healthPct}%</div>
+                                    <div class="inv-health-label">Healthy</div>
+                                </div>
+                            </div>
+                            <div class="inv-health-stats">
+                                <div class="inv-health-stat">
+                                    <div class="inv-health-stat-label">
+                                        <div class="inv-stat-dot" style="background:var(--green);"></div> In Stock
+                                    </div>
+                                    <div class="inv-health-stat-val">${formatNumber(inStock)}</div>
+                                </div>
+                                <div class="inv-health-stat">
+                                    <div class="inv-health-stat-label">
+                                        <div class="inv-stat-dot" style="background:#F59E0B;"></div> Low Stock
+                                    </div>
+                                    <div class="inv-health-stat-val">${formatNumber(lowStock)}</div>
+                                </div>
+                                <div class="inv-health-stat">
+                                    <div class="inv-health-stat-label">
+                                        <div class="inv-stat-dot" style="background:var(--red);"></div> Out of Stock
+                                    </div>
+                                    <div class="inv-health-stat-val">${formatNumber(outOfStock)}</div>
+                                </div>
+                                <div class="inv-health-stat" style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
+                                    <div class="inv-health-stat-label" style="font-weight:700;color:var(--text-primary);">Total Products</div>
+                                    <div class="inv-health-stat-val">${summary.total_products || 0}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Alerts -->
+                    <div class="section-card">
+                        <div class="section-header">
+                            <div class="section-title" style="color:var(--red);">
+                                🔔 Recent Alerts
+                            </div>
+                            <a class="view-all-link" onclick="loadPage('attention')">View All</a>
+                        </div>
+                        <div class="recent-alerts-list">
+                            ${recentAlerts.length === 0
+                                ? `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">✅ No active alerts</div>`
+                                : recentAlerts.map(a => {
+                                    const dotColor = a.severity === 'CRITICAL' ? 'alert-dot--red' : a.severity === 'HIGH' ? 'alert-dot--orange' : 'alert-dot--yellow';
+                                    const desc = a.metric_summary || a.attention_type?.replace(/_/g,' ') || '';
+                                    return `
+                                        <div class="recent-alert-item" onclick="openProductModal('${a.product_id}')">
+                                            <div class="alert-dot ${dotColor}"></div>
+                                            <div class="alert-item-body">
+                                                <div class="alert-item-name">${escapeHTML(a.product_name)}</div>
+                                                <div class="alert-item-desc">${escapeHTML(desc)}</div>
+                                            </div>
+                                            <div class="alert-item-time">now</div>
+                                            <svg class="alert-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                        </div>
+                                    `;
+                                }).join('')
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Render the sales trend SVG chart
+    renderSalesTrendLine(document.getElementById('dashboard-chart-container'), salesData.daily_trend || []);
+}
+
+// ─── Donut chart helpers ─────────────────────────────────────────────────────
+function renderDonutSVG(categories, total, invValue) {
+    const cx = 80, cy = 80, r = 65, innerR = 44;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+
+    const slices = categories.map(([cat, val]) => {
+        const pct = val / total;
+        const dashLen = pct * circumference;
+        const gap = circumference - dashLen;
+        const slice = { cat, val, pct, dashLen, gap, offset, color: CATEGORY_COLORS[cat] || '#64748B' };
+        offset += dashLen;
+        return slice;
+    });
+
+    const paths = slices.map(s => `
+        <circle
+            cx="${cx}" cy="${cy}" r="${r}"
+            fill="none"
+            stroke="${s.color}"
+            stroke-width="24"
+            stroke-dasharray="${s.dashLen} ${s.gap}"
+            stroke-dashoffset="${-s.offset + circumference * 0.25}"
+            style="transition: stroke-dashoffset 0.5s ease;"
+        />
+    `).join('');
+
+    const valShort = formatINRShort(invValue);
+
+    return `
+        <svg width="160" height="160" viewBox="0 0 160 160">
+            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#F1F5F9" stroke-width="24"/>
+            ${paths}
+            <circle cx="${cx}" cy="${cy}" r="${innerR}" fill="white"/>
+        </svg>
+        <div class="donut-center-label">
+            <div class="donut-center-value">${valShort}</div>
+            <div class="donut-center-sub">Total Value</div>
+        </div>
+    `;
+}
+
+function renderHealthDonut(pct) {
+    const cx = 50, cy = 50, r = 40;
+    const circ = 2 * Math.PI * r;
+    const filled = (pct / 100) * circ;
+    return `
+        <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#F1F5F9" stroke-width="14"/>
+            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#059669" stroke-width="14"
+                stroke-dasharray="${filled} ${circ - filled}"
+                stroke-dashoffset="${circ * 0.25}"
+                stroke-linecap="round"/>
+        </svg>
+    `;
+}
+
+function stockBadgeHTML(status) {
+    const s = (status || '').toUpperCase();
+    if (s === 'CRITICAL' || s === 'OUT_OF_STOCK') return `<span class="badge badge-out-of-stock">● Out of Stock</span>`;
+    if (s === 'HIGH' || s === 'LOW STOCK' || s === 'LOW_STOCK') return `<span class="badge badge-low-stock">● Low Stock</span>`;
+    return `<span class="badge badge-in-stock">● In Stock</span>`;
+}
+
+function getCatEmoji(cat) {
+    const map = { 'Beverages': '🧃', 'Groceries': '🛒', 'Snacks': '🍿', 'Personal Care': '🧴', 'Household': '🏠', 'Dairy': '🥛', 'Others': '📦' };
+    return map[cat] || '📦';
+}
+
+function formatDateShort(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
+}
+
+function formatINRShort(val) {
+    if (!val) return '₹0';
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)}Cr`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;
+    if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K`;
+    return `₹${val}`;
+}
+
+// ─── Line Chart ──────────────────────────────────────────────────────────────
+function renderSalesTrendLine(container, dailyTrend) {
+    if (!container) return;
+    const trend = Array.isArray(dailyTrend) ? dailyTrend.slice(-60) : [];
+    if (trend.length < 2) {
+        container.innerHTML = `<div class="empty-state" style="height:100%;border:none;"><p>Not enough data for chart.</p></div>`;
+        return;
+    }
+
+    const W = 560, H = 190;
+    const padL = 10, padR = 10, padT = 20, padB = 30;
+    const cW = W - padL - padR;
+    const cH = H - padT - padB;
+
+    const sales = trend.map(d => +d.sales_amount || 0);
+    const units = trend.map(d => +d.units_sold || 0);
+    const maxSales = Math.max(...sales, 1);
+    const maxUnits = Math.max(...units, 1);
+
+    const xPos = (i) => padL + (i / (trend.length - 1)) * cW;
+    const yPosSales = (v) => padT + cH - (v / maxSales) * cH;
+    const yPosUnits = (v) => padT + cH - (v / maxUnits) * cH;
+
+    const salesPath = trend.map((d, i) => `${i === 0 ? 'M' : 'L'}${xPos(i)},${yPosSales(+d.sales_amount || 0)}`).join(' ');
+    const unitsPath = trend.map((d, i) => `${i === 0 ? 'M' : 'L'}${xPos(i)},${yPosUnits(+d.units_sold || 0)}`).join(' ');
+    const areaPath = salesPath + ` L${xPos(trend.length-1)},${padT+cH} L${padL},${padT+cH} Z`;
+
+    // Peak annotation
+    const peakIdx = sales.indexOf(maxSales);
+    const peakX = xPos(peakIdx);
+    const peakY = yPosSales(maxSales);
+    const peakDate = trend[peakIdx]?.date || '';
+    const peakLabel = peakDate ? peakDate.slice(5).replace('-', '/') : '';
+
+    // X-axis labels (every ~10 points)
+    const step = Math.max(1, Math.floor(trend.length / 5));
+    const xLabels = trend.map((d, i) => {
+        if (i % step !== 0 && i !== trend.length - 1) return '';
+        const parts = (d.date || '').split('-');
+        const label = parts.length === 3 ? parts.slice(1).join('/') : '';
+        return `<text x="${xPos(i)}" y="${H - 5}" text-anchor="middle" class="chart-axis-text">${label}</text>`;
+    }).join('');
+
+    // Grid lines
+    const grid = [0.25, 0.5, 0.75, 1].map(f => {
+        const y = padT + cH - f * cH;
+        const val = formatINRShort(maxSales * f);
+        return `
+            <line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4"/>
+            <text x="${padL}" y="${y - 3}" class="chart-axis-text" text-anchor="start">${val}</text>
         `;
     }).join('');
 
     container.innerHTML = `
-        <!-- KPI Cards -->
-        <div class="kpi-grid">
-            <div class="kpi-card kpi-card--revenue">
-                <div class="kpi-card-icon">💰</div>
-                <div class="kpi-card-body">
-                    <div class="kpi-label">Total Revenue</div>
-                    <div class="kpi-value">${formatINR(totalSales)}</div>
-                    <div class="kpi-sub">📅 ${summary.date_range.start_date} → ${summary.date_range.end_date}</div>
-                </div>
-            </div>
-            <div class="kpi-card kpi-card--growth">
-                <div class="kpi-card-icon">${growthValue >= 0 ? '📈' : '📉'}</div>
-                <div class="kpi-card-body">
-                    <div class="kpi-label">Sales Growth</div>
-                    <div class="kpi-value" style="color: ${growthValue >= 0 ? '#047857' : '#B91C1C'};">${growthDisplay}</div>
-                    <div class="kpi-sub">${escapeHTML(salesGrowth.period || 'Selected period comparison')}</div>
-                </div>
-            </div>
-            <div class="kpi-card kpi-card--inventory">
-                <div class="kpi-card-icon">📦</div>
-                <div class="kpi-card-body">
-                    <div class="kpi-label">Inventory Value</div>
-                    <div class="kpi-value">${formatINR(invValue)}</div>
-                    <div class="kpi-sub">Current total stock value</div>
-                </div>
-            </div>
-            <div class="kpi-card kpi-card--alerts">
-                <div class="kpi-card-icon">${critCount > 0 ? '🚨' : '✅'}</div>
-                <div class="kpi-card-body">
-                    <div class="kpi-label">Urgent Issues</div>
-                    <div class="kpi-value" style="color: ${critCount > 0 ? '#B91C1C' : '#047857'};">${critCount}</div>
-                    <div class="kpi-sub">Critical &amp; High severity alerts</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Two column: Top Products + Inventory Health -->
-        <div class="dashboard-top-row">
-            <!-- Top Products: Ranked Cards -->
-            <div class="section-card">
-                <div class="section-header">
-                    <div>
-                        <h2 class="section-title">🏆 Top Products</h2>
-                        <div class="subtitle" style="margin-top:2px;">By revenue — click any card to drill down</div>
-                    </div>
-                    <span class="badge badge-info">Top 5</span>
-                </div>
-                <div class="top-products-list">
-                    ${topProductCardsHTML || '<div class="empty-state"><p>No product data available.</p></div>'}
-                </div>
-            </div>
-
-            <!-- Inventory Health -->
-            <div class="section-card">
-                <div class="section-header">
-                    <h2 class="section-title">📊 Inventory Health</h2>
-                </div>
-                <div class="health-grid" style="grid-template-columns: 1fr;">
-                    <div class="health-card critical">
-                        <div class="health-count">${attention.severity_counts ? attention.severity_counts.CRITICAL : 0}</div>
-                        <div class="health-label">🔴 Critical Stock-Out Risk</div>
-                    </div>
-                    <div class="health-card watch">
-                        <div class="health-count">${attention.severity_counts ? attention.severity_counts.HIGH : 0}</div>
-                        <div class="health-label">🟠 High Priority Risks</div>
-                    </div>
-                    <div class="health-card healthy">
-                        <div class="health-count">${Math.max(0, summary.total_products * summary.total_stores - (attention.count || 0))}</div>
-                        <div class="health-label">🟢 Healthy Items</div>
-                    </div>
-                </div>
-                <div style="margin-top:16px; padding-top:16px; border-top: 1px solid var(--border-color);">
-                    <div class="section-title" style="font-size:13px; margin-bottom:10px;">Store Coverage</div>
-                    <div style="display:flex; gap:8px; flex-wrap: wrap;">
-                        <span class="badge badge-info">📍 ${summary.total_stores} Stores</span>
-                        <span class="badge badge-info">📦 ${summary.total_products} Products</span>
-                        <span class="badge badge-info">📊 ${summary.total_transactions || 'N/A'} Txns</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sales Trend Chart -->
-        <div class="section-card">
-            <div class="section-header">
-                <div>
-                    <h2 class="section-title">📈 Daily Sales Trend</h2>
-                    <div class="subtitle" style="margin-top:2px;">Revenue over the selected period</div>
-                </div>
-                <span class="badge badge-info">Daily Revenue</span>
-            </div>
-            <div id="dashboard-chart-container" class="chart-container">
-                <!-- SVG Chart injected below -->
-            </div>
-        </div>
-
-        <!-- Attention Required Top Issues -->
-        <div class="section-card">
-            <div class="section-header">
-                <div>
-                    <h2 class="section-title">⚠️ Attention Required Today</h2>
-                    <div class="subtitle" style="margin-top:2px;">Top ${topAttentions.length} urgent alerts</div>
-                </div>
-                <a href="#attention" class="btn btn-secondary btn-sm" onclick="event.preventDefault(); loadPage('attention');">View All ${attention.count || 0} Alerts →</a>
-            </div>
-            ${topAttentions.length === 0 ? `
-                <div class="empty-state">
-                    <p>✅ All inventory systems are healthy. No items require immediate attention.</p>
-                </div>
-            ` : `
-                <div class="attention-grid">
-                    ${topAttentions.map(item => renderAttentionCardHTML(item)).join('')}
-                </div>
-            `}
-        </div>
+        <svg viewBox="0 0 ${W} ${H}" class="svg-chart">
+            <defs>
+                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2563EB" stop-opacity="0.15"/>
+                    <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            ${grid}
+            <path d="${areaPath}" fill="url(#areaGrad)"/>
+            <path d="${salesPath}" class="chart-line-path"/>
+            <path d="${unitsPath}" class="chart-line-path-green"/>
+            <!-- Peak annotation -->
+            <circle cx="${peakX}" cy="${peakY}" r="4" fill="#2563EB"/>
+            <rect x="${peakX - 40}" y="${peakY - 28}" width="80" height="22" rx="4" fill="#1E293B"/>
+            <text x="${peakX}" y="${peakY - 13}" text-anchor="middle" font-size="10" fill="#fff" font-weight="700" font-family="Inter,sans-serif">${formatINRShort(maxSales)}</text>
+            <text x="${peakX}" y="${peakY - 4}" text-anchor="middle" font-size="8.5" fill="#94A3B8" font-family="Inter,sans-serif">${peakLabel}</text>
+            ${xLabels}
+        </svg>
     `;
-
-    renderSalesTrendSVG(document.getElementById('dashboard-chart-container'), salesData.daily_trend || []);
 }
 
-// -------------------------------------------------------------
-// PAGE 2: INVENTORY MANAGEMENT
-// -------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE 2: INVENTORY
+// ═══════════════════════════════════════════════════════════════════════════════
 async function renderInventoryPage(container) {
     let url = '/api/inventory';
     if (state.selectedStore !== 'all') url += `?store_id=${state.selectedStore}`;
 
     const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to load inventory data.");
-
+    if (!res.ok) throw new Error('Failed to load inventory data.');
     const data = await res.json();
     state.inventoryData = data.inventory || [];
 
     container.innerHTML = `
-        <div class="section-card">
-            <!-- Filter Controls Bar -->
-            <div class="section-header" style="flex-wrap: wrap; gap: 12px;">
-                <div style="display: flex; gap: 12px; flex: 1; flex-wrap: wrap;">
-                    <input type="text" id="inv-search" class="form-input" placeholder="🔍 Search product name or ID..." style="min-width: 220px;">
-                    
-                    <select id="inv-category" class="form-select">
-                        <option value="all">All Categories</option>
-                        <option value="Groceries">Groceries</option>
-                        <option value="Beverages">Beverages</option>
-                        <option value="Snacks">Snacks</option>
-                        <option value="Personal Care">Personal Care</option>
-                        <option value="Household">Household</option>
-                        <option value="Dairy">Dairy</option>
-                    </select>
-
-                    <select id="inv-status" class="form-select">
-                        <option value="all">All Statuses</option>
-                        <option value="CRITICAL">Critical</option>
-                        <option value="HIGH">Low Stock / High</option>
-                        <option value="MEDIUM">Watch / Medium</option>
-                        <option value="HEALTHY">Healthy</option>
-                        <option value="OVERSTOCKED">Overstocked</option>
-                        <option value="SLOW_MOVING">Slow Moving</option>
+        <div class="page-header">
+            <div class="page-greeting">
+                <div class="page-greeting-icon">📦</div>
+                <div>
+                    <div class="page-greeting-title">Inventory Management</div>
+                    <div class="page-greeting-sub">Monitor stock levels, sales velocity, and stock-out risks.</div>
+                </div>
+            </div>
+            <div class="page-controls">
+                <div class="filter-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <select onchange="state.selectedStore=this.value;loadPage('inventory');">
+                        <option value="all">All Stores</option>
+                        ${state.storesList.map(s => `<option value="${s.id}" ${state.selectedStore === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
                     </select>
                 </div>
-
-                <div class="subtitle" id="inv-count-label">Showing ${state.inventoryData.length} records</div>
+                <button class="btn btn-primary" id="btn-add-product">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add Product
+                </button>
             </div>
-
-            <!-- Inventory Data Table -->
-            <div class="table-container">
-                <table class="data-table" id="inventory-table">
-                    <thead>
-                        <tr>
-                            <th>Product Name</th>
-                            <th>Category</th>
-                            <th>Store</th>
-                            <th>Current Stock</th>
-                            <th>Daily Sales</th>
-                            <th>Days Remaining</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventory-table-body">
-                        ${renderInventoryTableRows(state.inventoryData)}
-                    </tbody>
-                </table>
+        </div>
+        <div class="page-content">
+            <div class="section-card">
+                <div class="section-header">
+                    <div style="display:flex;gap:10px;flex:1;flex-wrap:wrap;">
+                        <input type="text" id="inv-search" class="form-input" placeholder="🔍 Search product name or ID..." style="min-width:220px;">
+                        <select id="inv-category" class="form-select">
+                            <option value="all">All Categories</option>
+                            <option>Beverages</option><option>Groceries</option><option>Snacks</option>
+                            <option>Personal Care</option><option>Household</option><option>Dairy</option>
+                        </select>
+                        <select id="inv-status" class="form-select">
+                            <option value="all">All Statuses</option>
+                            <option value="CRITICAL">Critical</option>
+                            <option value="HIGH">Low Stock</option>
+                            <option value="MEDIUM">Watch</option>
+                            <option value="HEALTHY">Healthy</option>
+                            <option value="OVERSTOCKED">Overstocked</option>
+                            <option value="SLOW_MOVING">Slow Moving</option>
+                        </select>
+                    </div>
+                    <div class="subtitle" id="inv-count-label">Showing ${state.inventoryData.length} records</div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Store</th>
+                                <th class="number-cell">Current Stock</th>
+                                <th class="number-cell">Daily Sales</th>
+                                <th class="number-cell">Days Remaining</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body">
+                            ${renderInventoryTableRows(state.inventoryData)}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     `;
 
-    // Bind Inventory Controls
-    const searchInput = document.getElementById('inv-search');
-    const categorySelect = document.getElementById('inv-category');
-    const statusSelect = document.getElementById('inv-status');
+    const search = document.getElementById('inv-search');
+    const catSel = document.getElementById('inv-category');
+    const statSel = document.getElementById('inv-status');
 
-    function applyInventoryFilters() {
-        const q = (searchInput.value || '').toLowerCase().strip ? searchInput.value.toLowerCase().trim() : searchInput.value.toLowerCase();
-        const cat = categorySelect.value;
-        const stat = statusSelect.value;
-
+    function applyFilters() {
+        const q = search.value.toLowerCase().trim();
+        const cat = catSel.value;
+        const stat = statSel.value;
         const filtered = state.inventoryData.filter(item => {
-            const matchesSearch = !q || item.product_name.toLowerCase().includes(q) || item.product_id.toLowerCase().includes(q);
-            const matchesCat = cat === 'all' || item.category === cat;
-            const matchesStat = stat === 'all' || item.status.toUpperCase() === stat.toUpperCase();
-            return matchesSearch && matchesCat && matchesStat;
+            const mS = !q || item.product_name.toLowerCase().includes(q) || item.product_id.toLowerCase().includes(q);
+            const mC = cat === 'all' || item.category === cat;
+            const mSt = stat === 'all' || item.status.toUpperCase() === stat.toUpperCase();
+            return mS && mC && mSt;
         });
-
         document.getElementById('inventory-table-body').innerHTML = renderInventoryTableRows(filtered);
         document.getElementById('inv-count-label').textContent = `Showing ${filtered.length} of ${state.inventoryData.length} records`;
     }
 
-    if (searchInput) searchInput.addEventListener('input', applyInventoryFilters);
-    if (categorySelect) categorySelect.addEventListener('change', applyInventoryFilters);
-    if (statusSelect) statusSelect.addEventListener('change', applyInventoryFilters);
+    if (search) search.addEventListener('input', applyFilters);
+    if (catSel) catSel.addEventListener('change', applyFilters);
+    if (statSel) statSel.addEventListener('change', applyFilters);
 }
 
 function renderInventoryTableRows(items) {
     if (!items || items.length === 0) {
-        return `
-            <tr>
-                <td colspan="8" class="empty-state" style="padding: 32px; text-align: center;">
-                    No products match the selected filter criteria.
-                </td>
-            </tr>
-        `;
+        return `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">No products match the selected filter criteria.</td></tr>`;
     }
-
     return items.map(item => {
         const daysDisplay = item.days_remaining_display !== 'UNAVAILABLE' ? `${item.days_remaining}d` : 'N/A';
         const badgeClass = getBadgeClassForStatus(item.status);
-
         return `
             <tr onclick="openProductModal('${item.product_id}')">
                 <td>
-                    <div style="font-weight: 600;">${item.product_name}</div>
-                    <div class="subtitle" style="font-size: 11px;">${item.product_id}</div>
+                    <div style="font-weight:600;">${escapeHTML(item.product_name)}</div>
+                    <div class="subtitle">${escapeHTML(item.product_id)}</div>
                 </td>
-                <td>${item.category}</td>
-                <td>${item.store_name}</td>
+                <td>${escapeHTML(item.category)}</td>
+                <td>${escapeHTML(item.store_name)}</td>
                 <td class="number-cell">${formatNumber(item.current_stock)}</td>
                 <td class="number-cell">${item.average_daily_units_sold} u/d</td>
                 <td class="number-cell">${daysDisplay}</td>
-                <td><span class="badge ${badgeClass}">${item.status}</span></td>
+                <td><span class="badge ${badgeClass}">${escapeHTML(item.status)}</span></td>
                 <td>
-                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openProductModal('${item.product_id}');">
-                        Details
-                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openProductModal('${item.product_id}');">Details</button>
                 </td>
             </tr>
         `;
     }).join('');
 }
 
-// -------------------------------------------------------------
-// PAGE 3: SALES ANALYTICS
-// -------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE 3: SALES
+// ═══════════════════════════════════════════════════════════════════════════════
 async function renderSalesPage(container) {
-    let url = `/api/sales${buildSalesQueryParams()}`;
-
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to load sales analytics data.");
-
+    const res = await fetch(`/api/sales${buildSalesQueryParams()}`);
+    if (!res.ok) throw new Error('Failed to load sales data.');
     const data = await res.json();
     state.salesData = data;
 
@@ -516,302 +895,289 @@ async function renderSalesPage(container) {
     const salesGrowth = data.sales_growth || {};
     const growthValue = salesGrowth.percentage_change;
     const growthDisplay = growthValue === null || growthValue === undefined ? 'N/A' : `${growthValue > 0 ? '+' : ''}${growthValue}%`;
-
     const topProducts = [...products].sort((a, b) => b.total_sales_amount - a.total_sales_amount).slice(0, 5);
     const bottomProducts = [...products].sort((a, b) => a.total_sales_amount - b.total_sales_amount).slice(0, 5);
 
     container.innerHTML = `
-        <!-- Sales KPI Grid -->
-        <div class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-label">Total Revenue</div>
-                <div class="kpi-value">${formatINR(summary.total_sales_amount || 0)}</div>
-                <div class="kpi-sub">Period: ${summary.date_range ? summary.date_range.start_date : 'N/A'} to ${summary.date_range ? summary.date_range.end_date : 'N/A'}</div>
+        <div class="page-header">
+            <div class="page-greeting">
+                <div class="page-greeting-icon">📈</div>
+                <div>
+                    <div class="page-greeting-title">Sales Analytics</div>
+                    <div class="page-greeting-sub">Analyze revenue, units sold, and performance trends.</div>
+                </div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Total Units Sold</div>
-                <div class="kpi-value">${formatNumber(summary.total_units_sold || 0)}</div>
-                <div class="kpi-sub">Total item volume</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Average Daily Revenue</div>
-                <div class="kpi-value">${formatINR(summary.avg_daily_sales_amount || 0)}/day</div>
-                <div class="kpi-sub">Across active observation period</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Sales Growth</div>
-                <div class="kpi-value" style="color: ${growthValue >= 0 ? '#047857' : '#B91C1C'};">${growthDisplay}</div>
-                <div class="kpi-sub">Recent half vs previous half</div>
+            <div class="page-controls">
+                <div class="filter-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <select onchange="state.selectedStore=this.value;loadPage('sales');">
+                        <option value="all">All Stores</option>
+                        ${state.storesList.map(s => `<option value="${s.id}" ${state.selectedStore === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                    </select>
+                </div>
+                <select class="period-select" style="padding:7px 14px;border-radius:20px;" onchange="state.selectedDateRange=this.value;loadPage('sales');">
+                    <option value="all">Last 3 Months</option>
+                    <option value="last_30_days">Last 30 Days</option>
+                    <option value="last_14_days">Last 14 Days</option>
+                    <option value="last_7_days">Last 7 Days</option>
+                </select>
             </div>
         </div>
-
-        <!-- Sales Trend Chart -->
-        <div class="section-card">
-            <div class="section-header">
-                <h2 class="section-title">Sales Revenue Trend</h2>
-                <span class="badge badge-info">Historical Performance</span>
+        <div class="page-content">
+            <div class="kpi-grid">
+                <div class="kpi-card kpi-card--revenue">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--blue">💰</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Total Revenue</div>
+                        <div class="kpi-value">${formatINR(summary.total_sales_amount || 0)}</div>
+                        <div class="kpi-change neutral">${summary.date_range?.start_date || ''} → ${summary.date_range?.end_date || ''}</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--growth">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--green">📦</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Total Units Sold</div>
+                        <div class="kpi-value">${formatNumber(summary.total_units_sold || 0)}</div>
+                        <div class="kpi-change neutral">Total item volume</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--inventory">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--purple">📊</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Avg Daily Revenue</div>
+                        <div class="kpi-value">${formatINR(summary.avg_daily_sales_amount || 0)}</div>
+                        <div class="kpi-change neutral">Per day average</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-card--alerts">
+                    <div class="kpi-icon-wrap kpi-icon-wrap--${growthValue >= 0 ? 'green' : 'red'}">${growthValue >= 0 ? '📈' : '📉'}</div>
+                    <div class="kpi-body">
+                        <div class="kpi-label">Sales Growth</div>
+                        <div class="kpi-value" style="color:${growthValue >= 0 ? 'var(--green)' : 'var(--red)'};">${growthDisplay}</div>
+                        <div class="kpi-change ${growthValue >= 0 ? 'up' : 'down'}">Recent vs prior period</div>
+                    </div>
+                </div>
             </div>
-            <div id="sales-chart-container" class="chart-container">
-                <!-- SVG Chart injected -->
-            </div>
-        </div>
 
-        <!-- Top & Bottom Product Tables -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-            <div class="section-card">
+            <div class="section-card" style="margin-bottom:16px;">
                 <div class="section-header">
-                    <h2 class="section-title">Top 5 Revenue Products</h2>
+                    <div class="section-title">Sales Revenue Trend</div>
+                    <span class="badge badge-info">Historical Performance</span>
                 </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Category</th>
-                                <th class="number-cell">Revenue</th>
-                                <th class="number-cell">Units</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${topProducts.map(p => `
-                                <tr onclick="openProductModal('${p.product_id}')">
-                                    <td><strong>${p.product_name}</strong></td>
-                                    <td>${p.category}</td>
-                                    <td class="number-cell">${formatINR(p.total_sales_amount)}</td>
-                                    <td class="number-cell">${formatNumber(p.total_units_sold)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
+                <div id="sales-chart-container" class="chart-container"></div>
             </div>
 
-            <div class="section-card">
-                <div class="section-header">
-                    <h2 class="section-title">Bottom 5 Revenue Products</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div class="section-card">
+                    <div class="section-header"><div class="section-title">🏆 Top 5 Revenue Products</div></div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead><tr><th>Product</th><th>Category</th><th class="number-cell">Revenue</th><th class="number-cell">Units</th></tr></thead>
+                            <tbody>
+                                ${topProducts.map(p => `
+                                    <tr onclick="openProductModal('${p.product_id}')">
+                                        <td style="font-weight:600;">${escapeHTML(p.product_name)}</td>
+                                        <td>${escapeHTML(p.category)}</td>
+                                        <td class="number-cell">${formatINR(p.total_sales_amount)}</td>
+                                        <td class="number-cell">${formatNumber(p.total_units_sold)}</td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Category</th>
-                                <th class="number-cell">Revenue</th>
-                                <th class="number-cell">Units</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${bottomProducts.map(p => `
-                                <tr onclick="openProductModal('${p.product_id}')">
-                                    <td><strong>${p.product_name}</strong></td>
-                                    <td>${p.category}</td>
-                                    <td class="number-cell">${formatINR(p.total_sales_amount)}</td>
-                                    <td class="number-cell">${formatNumber(p.total_units_sold)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                <div class="section-card">
+                    <div class="section-header"><div class="section-title">📉 Bottom 5 Revenue Products</div></div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead><tr><th>Product</th><th>Category</th><th class="number-cell">Revenue</th><th class="number-cell">Units</th></tr></thead>
+                            <tbody>
+                                ${bottomProducts.map(p => `
+                                    <tr onclick="openProductModal('${p.product_id}')">
+                                        <td style="font-weight:600;">${escapeHTML(p.product_name)}</td>
+                                        <td>${escapeHTML(p.category)}</td>
+                                        <td class="number-cell">${formatINR(p.total_sales_amount)}</td>
+                                        <td class="number-cell">${formatNumber(p.total_units_sold)}</td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     `;
 
-    renderSalesTrendSVG(document.getElementById('sales-chart-container'), data.daily_trend || []);
+    renderSalesTrendLine(document.getElementById('sales-chart-container'), data.daily_trend || []);
 }
 
-// -------------------------------------------------------------
-// PAGE 4: ATTENTION REQUIRED
-// -------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE 4: ATTENTION / ALERTS
+// ═══════════════════════════════════════════════════════════════════════════════
 async function renderAttentionPage(container) {
     let url = '/api/attention';
     if (state.selectedStore !== 'all') url += `?store_id=${state.selectedStore}`;
-
     const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to load attention alerts.");
-
+    if (!res.ok) throw new Error('Failed to load attention alerts.');
     const data = await res.json();
     state.attentionData = data.attention_items || [];
 
     container.innerHTML = `
-        <div class="section-card">
-            <!-- Filter Bar -->
-            <div class="section-header" style="flex-wrap: wrap; gap: 12px;">
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn btn-secondary btn-sm att-type-btn active" data-type="all">All Alerts (${data.count || 0})</button>
-                    <button class="btn btn-secondary btn-sm att-type-btn" data-type="STOCK_OUT_RISK">Stock-Out Risks</button>
-                    <button class="btn btn-secondary btn-sm att-type-btn" data-type="SLOW_MOVING">Slow-Moving</button>
-                    <button class="btn btn-secondary btn-sm att-type-btn" data-type="OVERSTOCK">Overstock</button>
-                    <button class="btn btn-secondary btn-sm att-type-btn" data-type="SALES_SPIKE">Sales Spikes</button>
-                    <button class="btn btn-secondary btn-sm att-type-btn" data-type="SALES_DROP">Sales Drops</button>
+        <div class="page-header">
+            <div class="page-greeting">
+                <div class="page-greeting-icon">🔔</div>
+                <div>
+                    <div class="page-greeting-title">Alerts & Attention Required</div>
+                    <div class="page-greeting-sub">Critical operational findings, evidence, and recommendations.</div>
                 </div>
-
-                <select id="att-severity-select" class="form-select">
-                    <option value="all">All Severities</option>
-                    <option value="CRITICAL">Critical Only</option>
-                    <option value="HIGH">High Only</option>
-                    <option value="MEDIUM">Medium Only</option>
-                </select>
             </div>
-
-            <div id="attention-list-container" class="attention-grid">
-                ${state.attentionData.length === 0 ? `
-                    <div class="empty-state">
-                        <p>✅ Zero active attention findings. Store operations are optimal.</p>
+            <div class="page-controls">
+                <div class="filter-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <select onchange="state.selectedStore=this.value;loadPage('attention');">
+                        <option value="all">All Stores</option>
+                        ${state.storesList.map(s => `<option value="${s.id}" ${state.selectedStore === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="page-content">
+            <div class="section-card">
+                <div class="section-header" style="flex-wrap:wrap;gap:10px;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-secondary btn-sm att-type-btn active" data-type="all">All (${data.count || 0})</button>
+                        <button class="btn btn-secondary btn-sm att-type-btn" data-type="STOCK_OUT_RISK">Stock-Out Risks</button>
+                        <button class="btn btn-secondary btn-sm att-type-btn" data-type="SLOW_MOVING">Slow-Moving</button>
+                        <button class="btn btn-secondary btn-sm att-type-btn" data-type="OVERSTOCK">Overstock</button>
+                        <button class="btn btn-secondary btn-sm att-type-btn" data-type="SALES_SPIKE">Sales Spikes</button>
+                        <button class="btn btn-secondary btn-sm att-type-btn" data-type="SALES_DROP">Sales Drops</button>
                     </div>
-                ` : state.attentionData.map(item => renderAttentionCardHTML(item)).join('')}
+                    <select id="att-severity-select" class="form-select">
+                        <option value="all">All Severities</option>
+                        <option value="CRITICAL">Critical Only</option>
+                        <option value="HIGH">High Only</option>
+                        <option value="MEDIUM">Medium Only</option>
+                    </select>
+                </div>
+                <div id="attention-list-container" class="attention-grid" style="padding:20px;">
+                    ${state.attentionData.length === 0
+                        ? `<div class="empty-state" style="border:none;"><p>✅ Zero active attention findings. Store operations are optimal.</p></div>`
+                        : state.attentionData.map(item => renderAttentionCardHTML(item)).join('')}
+                </div>
             </div>
         </div>
     `;
 
-    // Filter Handlers
     const typeBtns = container.querySelectorAll('.att-type-btn');
     const sevSelect = container.querySelector('#att-severity-select');
-
-    let activeType = 'all';
-    let activeSev = 'all';
+    let activeType = 'all', activeSev = 'all';
 
     function filterAttentionList() {
         const filtered = state.attentionData.filter(item => {
-            const matchType = activeType === 'all' || item.attention_type === activeType;
-            const matchSev = activeSev === 'all' || item.severity === activeSev;
-            return matchType && matchSev;
+            return (activeType === 'all' || item.attention_type === activeType)
+                && (activeSev === 'all' || item.severity === activeSev);
         });
-
-        const listContainer = document.getElementById('attention-list-container');
-        if (filtered.length === 0) {
-            listContainer.innerHTML = `<div class="empty-state"><p>No attention items match the selected filter criteria.</p></div>`;
-        } else {
-            listContainer.innerHTML = filtered.map(item => renderAttentionCardHTML(item)).join('');
-        }
+        const lc = document.getElementById('attention-list-container');
+        lc.innerHTML = filtered.length === 0
+            ? `<div class="empty-state" style="border:none;"><p>No items match the selected filters.</p></div>`
+            : filtered.map(item => renderAttentionCardHTML(item)).join('');
     }
 
     typeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             typeBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            activeType = btn.getAttribute('data-type');
+            activeType = btn.dataset.type;
             filterAttentionList();
         });
     });
-
-    if (sevSelect) {
-        sevSelect.addEventListener('change', (e) => {
-            activeSev = e.target.value;
-            filterAttentionList();
-        });
-    }
+    if (sevSelect) sevSelect.addEventListener('change', e => { activeSev = e.target.value; filterAttentionList(); });
 }
 
 function renderAttentionCardHTML(item) {
     const badgeClass = getBadgeClassForSeverity(item.severity);
     const typeLabel = item.attention_type.replace(/_/g, ' ');
-
     return `
         <div class="attention-card ${item.severity.toLowerCase()}">
             <div class="attention-card-header">
-                <div>
-                    <span class="badge ${badgeClass}">${item.severity}</span>
-                    <span class="badge badge-info" style="margin-left: 6px;">${typeLabel}</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <span class="badge ${badgeClass}">${escapeHTML(item.severity)}</span>
+                    <span class="badge badge-info">${escapeHTML(typeLabel)}</span>
                 </div>
-                <div class="attention-store">${item.store_name}</div>
+                <div class="attention-store">${escapeHTML(item.store_name)}</div>
             </div>
-
             <div>
-                <div class="attention-title" onclick="openProductModal('${item.product_id}')" style="cursor: pointer;">
-                    ${item.product_name} <span class="subtitle">(${item.product_id})</span>
+                <div class="attention-title" onclick="openProductModal('${item.product_id}')" style="cursor:pointer;">
+                    ${escapeHTML(item.product_name)} <span class="subtitle">(${escapeHTML(item.product_id)})</span>
                 </div>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
-                    ${item.metric_summary}
-                </p>
+                <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">${escapeHTML(item.metric_summary)}</p>
             </div>
-
-            <!-- Factual Evidence Box -->
             <div class="evidence-box">
-                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">📊 Factual Evidence (Python Engine)</div>
-                <div><strong>Metric:</strong> ${item.evidence.metric || 'N/A'}</div>
-                <div><strong>Observation Period:</strong> ${item.evidence.calculation_period || 'Historical 90-day window'}</div>
-                <div><strong>Threshold Applied:</strong> ${item.evidence.threshold_used || 'Centralized Business Rule'}</div>
+                <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">📊 Factual Evidence</div>
+                <div><strong>Metric:</strong> ${escapeHTML(item.evidence?.metric || 'N/A')}</div>
+                <div><strong>Period:</strong> ${escapeHTML(item.evidence?.calculation_period || 'Historical 90-day window')}</div>
+                <div><strong>Threshold:</strong> ${escapeHTML(item.evidence?.threshold_used || 'Centralized Business Rule')}</div>
             </div>
-
-            <!-- Decision-Support Recommendation -->
             <div class="recommendation-box">
-                <strong>💡 Recommended Action:</strong> ${item.recommendation}
+                <strong>💡 Recommended Action:</strong> ${escapeHTML(item.recommendation)}
             </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-muted);">
-                <span>Assumptions: ${item.assumptions ? item.assumptions[0] : 'Historical velocity continuation.'}</span>
-                <span class="badge badge-healthy">Data: ${item.data_sufficiency}</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-muted);">
+                <span>Assumptions: ${escapeHTML(item.assumptions ? item.assumptions[0] : 'Historical velocity continuation.')}</span>
+                <span class="badge badge-healthy">Data: ${escapeHTML(item.data_sufficiency)}</span>
             </div>
         </div>
     `;
 }
 
-// -------------------------------------------------------------
-// PAGE 5: AI COPILOT PLACEHOLDER
-// -------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE 5: AI COPILOT
+// ═══════════════════════════════════════════════════════════════════════════════
 let copilotHistory = [];
 let copilotLastIntent = null;
 let copilotLastProductId = null;
 
 function renderCopilotPage(container) {
     container.innerHTML = `
-        <div class="copilot-container">
-            <div class="copilot-header-card">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                    <div>
-                        <h2 style="font-size: 20px; font-weight: 700; color: var(--text-primary);">🤖 Ask ShelfIQ</h2>
-                        <p class="subtitle">Get evidence-based answers about your sales and inventory.</p>
-                    </div>
-                    <span class="badge badge-healthy">Grounded AI Active</span>
+        <div class="page-header">
+            <div class="page-greeting">
+                <div class="page-greeting-icon">🤖</div>
+                <div>
+                    <div class="page-greeting-title">AI Insights — Ask ShelfIQ</div>
+                    <div class="page-greeting-sub">Get evidence-based answers about your sales and inventory.</div>
                 </div>
-
-                <div style="margin-top: 16px;">
+            </div>
+            <div class="page-controls">
+                <span class="badge badge-healthy">Grounded AI Active</span>
+            </div>
+        </div>
+        <div class="page-content">
+            <div class="copilot-container">
+                <div class="copilot-header-card">
                     <div class="copilot-section-title">💡 Sample Questions You Can Ask:</div>
                     <div class="sample-questions-grid">
-                        <div class="sample-pill" onclick="askCopilotQuestion('What needs attention today?')">
-                            <span>⚠️</span> What needs attention today?
-                        </div>
-                        <div class="sample-pill" onclick="askCopilotQuestion('Which products may run out soon?')">
-                            <span>🚨</span> Which products may run out soon?
-                        </div>
-                        <div class="sample-pill" onclick="askCopilotQuestion('What is overstocked?')">
-                            <span>📦</span> What is overstocked?
-                        </div>
-                        <div class="sample-pill" onclick="askCopilotQuestion('Which products are selling slowly?')">
-                            <span>📉</span> Which products are selling slowly?
-                        </div>
-                        <div class="sample-pill" onclick="askCopilotQuestion('Did sales spike anywhere?')">
-                            <span>🚀</span> Did sales spike anywhere?
-                        </div>
-                        <div class="sample-pill" onclick="askCopilotQuestion('How are my sales performing?')">
-                            <span>📊</span> How are my sales performing?
-                        </div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('What needs attention today?')">⚠️ What needs attention today?</div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('Which products may run out soon?')">🚨 Which products may run out soon?</div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('What is overstocked?')">📦 What is overstocked?</div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('Which products are selling slowly?')">📉 Which are selling slowly?</div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('Did sales spike anywhere?')">🚀 Did sales spike anywhere?</div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('How are my sales performing?')">📊 How are sales performing?</div>
                     </div>
+                    <form id="copilot-form" onsubmit="handleCopilotSubmit(event)" class="copilot-input-area">
+                        <input type="text" id="copilot-input" class="form-input" placeholder="Ask a question about inventory, sales, products, or stores..." autocomplete="off">
+                        <button type="submit" id="btn-copilot-submit" class="btn btn-primary">Send ➔</button>
+                    </form>
                 </div>
-
-                <form id="copilot-form" onsubmit="handleCopilotSubmit(event)" class="copilot-input-area">
-                    <input type="text" id="copilot-input" class="form-input" placeholder="Ask a question about inventory, sales, products, or stores..." autocomplete="off">
-                    <button type="submit" id="btn-copilot-submit" class="btn btn-primary">
-                        Send ➔
-                    </button>
-                </form>
-            </div>
-
-            <!-- Loading State Container -->
-            <div id="copilot-loading" class="loading-state hidden">
-                <div style="font-size: 15px; font-weight: 600; color: var(--primary-color);">⌛ Analyzing your store data...</div>
-                <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Fetching deterministic evidence and synthesizing grounded decision support.</p>
-            </div>
-
-            <!-- Results Viewport -->
-            <div id="copilot-results" style="display: flex; flex-direction: column; gap: 20px;">
-                ${copilotHistory.length === 0 ? `
-                    <div class="empty-state">
-                        <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
-                        <div style="font-weight: 600; color: var(--text-primary);">No questions asked yet.</div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Click any sample question above or type your query in the search box.</p>
-                    </div>
-                ` : copilotHistory.map(item => renderCopilotResponseHTML(item)).join('')}
+                <div id="copilot-loading" class="loading-state hidden">
+                    <div style="font-size:15px;font-weight:600;color:var(--primary);" class="copilot-loading-text">⌛ Analyzing your store data...</div>
+                    <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">Fetching deterministic evidence and synthesizing grounded decision support.</p>
+                </div>
+                <div id="copilot-results" style="display:flex;flex-direction:column;gap:18px;">
+                    ${copilotHistory.length === 0 ? `
+                        <div class="empty-state">
+                            <div style="font-size:32px;margin-bottom:8px;">📊</div>
+                            <div style="font-weight:600;color:var(--text-primary);">No questions asked yet.</div>
+                            <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">Click any sample question above or type your query.</p>
+                        </div>
+                    ` : copilotHistory.map(item => renderCopilotResponseHTML(item)).join('')}
+                </div>
             </div>
         </div>
     `;
@@ -820,8 +1186,7 @@ function renderCopilotPage(container) {
 async function handleCopilotSubmit(e) {
     if (e) e.preventDefault();
     const input = document.getElementById('copilot-input');
-    if (!input || !input.value.trim()) return;
-
+    if (!input?.value?.trim()) return;
     const q = input.value.trim();
     input.value = '';
     await askCopilotQuestion(q);
@@ -830,13 +1195,10 @@ async function handleCopilotSubmit(e) {
 async function askCopilotQuestion(questionText) {
     const loading = document.getElementById('copilot-loading');
     const submitBtn = document.getElementById('btn-copilot-submit');
-
     if (loading) loading.classList.remove('hidden');
     if (submitBtn) submitBtn.disabled = true;
 
-    // Get active store filter from navbar dropdown if set
-    const storeSelect = document.getElementById('store-select');
-    const selectedStore = (storeSelect && storeSelect.value !== 'all') ? storeSelect.value : null;
+    const selectedStore = state.selectedStore !== 'all' ? state.selectedStore : null;
 
     try {
         const payload = {
@@ -845,35 +1207,35 @@ async function askCopilotQuestion(questionText) {
             previous_intent: copilotLastIntent,
             previous_product_id: copilotLastProductId
         };
-
         const res = await fetch('/api/ai/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.detail || "Copilot query failed");
+            throw new Error(errData.detail || 'Copilot query failed');
         }
-
         const data = await res.json();
         copilotLastIntent = data.intent;
-
-        // Track product ID if present in evidence
-        if (data.evidence && data.evidence.length > 0 && data.evidence[0].product_id) {
+        if (data.evidence?.length > 0 && data.evidence[0].product_id) {
             copilotLastProductId = data.evidence[0].product_id;
         }
-
         copilotHistory.unshift(data);
-        const resultsContainer = document.getElementById('copilot-results');
-        if (resultsContainer) {
-            resultsContainer.innerHTML = copilotHistory.map(item => renderCopilotResponseHTML(item)).join('');
-        }
+        const results = document.getElementById('copilot-results');
+        if (results) results.innerHTML = copilotHistory.map(item => renderCopilotResponseHTML(item)).join('');
     } catch (err) {
-        const resultsContainer = document.getElementById('copilot-results');
-        if (resultsContainer) {
-            resultsContainer.innerHTML = renderCopilotErrorHTML() + copilotHistory.map(item => renderCopilotResponseHTML(item)).join('');
+        const results = document.getElementById('copilot-results');
+        if (results) {
+            results.innerHTML = `
+                <div class="copilot-error-card">
+                    <span style="font-size:20px;">⚠️</span>
+                    <div>
+                        <div style="font-weight:700;margin-bottom:4px;">Copilot temporarily unavailable</div>
+                        <div style="font-size:13px;opacity:0.85;">Please try again. Backend details remain hidden.</div>
+                    </div>
+                </div>
+            ` + copilotHistory.map(item => renderCopilotResponseHTML(item)).join('');
         }
     } finally {
         if (loading) loading.classList.add('hidden');
@@ -886,87 +1248,64 @@ function renderCopilotResponseHTML(data) {
     const evidence = Array.isArray(data.evidence) ? data.evidence : [];
     const keyPoints = Array.isArray(data.key_points) ? data.key_points : [];
     const assumptions = Array.isArray(data.assumptions) ? data.assumptions : [];
-    const suffClass = data.data_sufficiency === 'SUFFICIENT' ? 'badge-healthy' :
-                      data.data_sufficiency === 'LIMITED' ? 'badge-medium' : 'badge-critical';
-
-    const supportingNumbersHTML = supportingNumbers.length > 0 ? `
-        <div>
-            <div class="copilot-section-title">📊 Supporting Numbers</div>
-            <div class="supporting-numbers-grid">
-                ${supportingNumbers.map(num => `
-                    <div class="supporting-number-card">
-                        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${escapeHTML(num.product_name || 'Retail Metric')}</div>
-                        <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${escapeHTML(num.value)}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">${escapeHTML(num.metric)} (${escapeHTML(num.store_name || 'All Stores')})</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    ` : '';
-
-    const evidenceHTML = evidence.length > 0 ? `
-        <div>
-            <div class="copilot-section-title">🔎 Factual Evidence (Python Backend)</div>
-            ${evidence.map(ev => {
-                const sourceLabel = escapeHTML(ev.source || "Inventory analysis");
-                const pName = ev.product_name ? `${escapeHTML(ev.product_name)} (${escapeHTML(ev.product_id || '')})` : '';
-                const sName = ev.store_name ? `@ ${escapeHTML(ev.store_name)}` : '';
-                const details = ev.supporting_values ? escapeHTML(JSON.stringify(ev.supporting_values).replace(/["{}]/g, '')) : '';
-                return `
-                    <div class="evidence-item-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span class="source-badge">Source: ${sourceLabel}</span>
-                            <span style="font-size: 11px; color: var(--text-muted);">Period: ${escapeHTML(ev.period || 'Last 90 days')}</span>
-                        </div>
-                        <div><strong>${pName} ${sName}</strong></div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
-                            <strong>Metric:</strong> ${escapeHTML(ev.metric || 'metric_value')} = ${escapeHTML(ev.value)}
-                            ${details ? ` | <span>Details: ${details}</span>` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    ` : '';
+    const suffClass = data.data_sufficiency === 'SUFFICIENT' ? 'badge-healthy' : data.data_sufficiency === 'LIMITED' ? 'badge-medium' : 'badge-critical';
 
     return `
         <div class="copilot-response-card">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border);padding-bottom:12px;">
                 <div>
-                    <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">User Question</span>
-                    <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">"${escapeHTML(data.question || '')}"</h3>
+                    <span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Question</span>
+                    <h3 style="font-size:15px;font-weight:700;color:var(--text-primary);margin-top:2px;">"${escapeHTML(data.question || '')}"</h3>
                 </div>
                 <span class="badge ${suffClass}">Data: ${escapeHTML(data.data_sufficiency || 'INSUFFICIENT')}</span>
             </div>
-
-            <!-- Executive Answer -->
             <div>
                 <div class="copilot-section-title">💬 Answer</div>
-                <div class="copilot-answer-text">
-                    ${escapeHTML(data.answer || 'Analysis complete.')}
-                </div>
+                <div class="copilot-answer-text">${escapeHTML(data.answer || 'Analysis complete.')}</div>
             </div>
-
-            ${supportingNumbersHTML}
-            ${evidenceHTML}
-
-            <!-- Key Points -->
+            ${supportingNumbers.length > 0 ? `
+                <div>
+                    <div class="copilot-section-title">📊 Supporting Numbers</div>
+                    <div class="supporting-numbers-grid">
+                        ${supportingNumbers.map(num => `
+                            <div class="supporting-number-card">
+                                <div style="font-size:11px;font-weight:600;color:var(--text-muted);">${escapeHTML(num.product_name || 'Retail Metric')}</div>
+                                <div style="font-size:16px;font-weight:700;color:var(--text-primary);">${escapeHTML(num.value)}</div>
+                                <div style="font-size:11px;color:var(--text-secondary);">${escapeHTML(num.metric)} (${escapeHTML(num.store_name || 'All Stores')})</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            ${evidence.length > 0 ? `
+                <div>
+                    <div class="copilot-section-title">🔎 Factual Evidence</div>
+                    ${evidence.map(ev => `
+                        <div class="evidence-item-card">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                <span class="source-badge">Source: ${escapeHTML(ev.source || 'Inventory analysis')}</span>
+                                <span style="font-size:11px;color:var(--text-muted);">Period: ${escapeHTML(ev.period || 'Last 90 days')}</span>
+                            </div>
+                            <div><strong>${escapeHTML(ev.product_name || '')} ${ev.store_name ? `@ ${escapeHTML(ev.store_name)}` : ''}</strong></div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">
+                                <strong>Metric:</strong> ${escapeHTML(ev.metric || 'metric_value')} = ${escapeHTML(ev.value)}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
             ${keyPoints.length > 0 ? `
                 <div>
                     <div class="copilot-section-title">📌 Key Takeaways</div>
-                    <ul style="padding-left: 20px; font-size: 13px; color: var(--text-primary); display: flex; flex-direction: column; gap: 4px;">
+                    <ul style="padding-left:20px;font-size:13px;color:var(--text-primary);display:flex;flex-direction:column;gap:4px;">
                         ${keyPoints.map(kp => `<li>${escapeHTML(kp)}</li>`).join('')}
                     </ul>
                 </div>
             ` : ''}
-
-            <!-- Recommended Action Callout -->
             <div class="recommendation-box">
                 <strong>💡 Recommended Action:</strong> ${escapeHTML(data.recommendation || 'Continue standard inventory monitoring.')}
             </div>
-
-            <!-- Assumptions & Transparency -->
-            <div style="font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 12px; display: flex; justify-content: space-between;">
+            <div class="copilot-footer-row">
                 <span><strong>Assumptions:</strong> ${escapeHTML(assumptions.length > 0 ? assumptions[0] : 'Based on factual daily sales velocity.')}</span>
                 <span><strong>Intent:</strong> ${escapeHTML(data.intent || 'UNKNOWN')}</span>
             </div>
@@ -974,18 +1313,116 @@ function renderCopilotResponseHTML(data) {
     `;
 }
 
-function renderCopilotErrorHTML() {
-    return `
-        <div class="copilot-error-card">
-            <div class="error-icon">!</div>
-            <div class="error-body">
-                <div class="error-title">Copilot is temporarily unavailable</div>
-                <div class="error-message">Please try again in a moment. Backend details and credentials remain hidden.</div>
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE 6: SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function renderSettingsPage(container) {
+    const res = await fetch('/api/health');
+    const health = res.ok ? await res.json() : {};
+
+    container.innerHTML = `
+        <div class="page-header">
+            <div class="page-greeting">
+                <div class="page-greeting-icon">⚙️</div>
+                <div>
+                    <div class="page-greeting-title">Store Settings</div>
+                    <div class="page-greeting-sub">Dataset status and application configuration.</div>
+                </div>
+            </div>
+        </div>
+        <div class="page-content">
+            <div class="section-card section-card-pad" style="max-width:680px;">
+                <div class="section-header"><div class="section-title">System Settings & Data Status</div></div>
+                <div style="padding:20px;display:flex;flex-direction:column;gap:0;">
+                    <div class="settings-row"><strong>Application Version</strong><span>ShelfIQ v3.0</span></div>
+                    <div class="settings-row"><strong>Backend Status</strong><span class="badge badge-healthy">${health.status || 'OK'}</span></div>
+                    <div class="settings-row"><strong>CSV Data Load Status</strong><span class="badge ${health.data_loaded ? 'badge-healthy' : 'badge-critical'}">${health.data_loaded ? 'LOADED & VALIDATED' : 'FAILED'}</span></div>
+                    <div class="settings-row"><strong>Supported Stores</strong><span>4 Stores (Hyderabad Central, Banjara Hills, Kukatpally, Secunderabad)</span></div>
+                    <div class="settings-row"><strong>Catalogue Size</strong><span>55 Products across 6 Categories</span></div>
+                    <div class="settings-row"><strong>AI Model</strong><span>gemini-3.6-flash (Grounded)</span></div>
+                </div>
             </div>
         </div>
     `;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCT MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+async function openProductModal(productId) {
+    const modal = document.getElementById('product-modal');
+    const body = document.getElementById('modal-body');
+    const nameEl = document.getElementById('modal-product-name');
+    const subEl = document.getElementById('modal-product-sub');
+    if (!modal || !body) return;
+
+    body.innerHTML = '<div class="loading-state" style="border:none;">Loading product details...</div>';
+    modal.classList.remove('hidden');
+
+    try {
+        const res = await fetch(`/api/products/${productId}`);
+        if (!res.ok) throw new Error('Product not found');
+        const data = await res.json();
+        nameEl.textContent = data.product_name;
+        subEl.textContent = `ID: ${data.product_id} | Category: ${data.category}`;
+        const perf = data.sales_performance || {};
+
+        body.innerHTML = `
+            <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:20px;">
+                <div class="kpi-card">
+                    <div class="kpi-body">
+                        <div class="kpi-label">Unit Price</div>
+                        <div class="kpi-value">${formatINR(data.unit_price)}</div>
+                        <div class="kpi-change neutral">Cost: ${formatINR(data.cost_price)}</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-body">
+                        <div class="kpi-label">Total Units Sold</div>
+                        <div class="kpi-value">${formatNumber(perf.total_units_sold || 0)}</div>
+                        <div class="kpi-change neutral">Revenue: ${formatINR(perf.total_sales_amount || 0)}</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-body">
+                        <div class="kpi-label">Sales Trend</div>
+                        <div class="kpi-value">${perf.sales_trend || 'STABLE'}</div>
+                        <div class="kpi-change neutral">Avg ${perf.avg_daily_units || 0} u/day</div>
+                    </div>
+                </div>
+            </div>
+            <h4 style="margin-bottom:12px;font-size:14px;">Store Inventory Breakdown</h4>
+            <div class="table-container" style="margin-bottom:20px;">
+                <table class="data-table">
+                    <thead><tr><th>Store</th><th class="number-cell">Current Stock</th><th class="number-cell">Daily Sales</th><th class="number-cell">Days Left</th><th>Status</th></tr></thead>
+                    <tbody>
+                        ${data.inventory_metrics.map(inv => `
+                            <tr>
+                                <td>${escapeHTML(inv.store_name)}</td>
+                                <td class="number-cell">${formatNumber(inv.current_stock)}</td>
+                                <td class="number-cell">${inv.average_daily_units_sold} u/d</td>
+                                <td class="number-cell">${escapeHTML(inv.days_remaining_display)}</td>
+                                <td><span class="badge ${getBadgeClassForStatus(inv.status)}">${escapeHTML(inv.status)}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            ${data.attention_items?.length > 0 ? `
+                <h4 style="margin-bottom:12px;font-size:14px;">Active Operational Alerts</h4>
+                <div class="attention-grid">
+                    ${data.attention_items.map(item => renderAttentionCardHTML(item)).join('')}
+                </div>
+            ` : `<p style="color:var(--text-muted);font-size:13px;">No critical alerts active for this product.</p>`}
+        `;
+    } catch (err) {
+        body.innerHTML = `<div class="error-state" style="border:none;">Failed to load details for product ${escapeHTML(productId)}.</div>`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
 function escapeHTML(value) {
     return String(value === null || value === undefined ? '' : value)
         .replace(/&/g, '&amp;')
@@ -995,207 +1432,9 @@ function escapeHTML(value) {
         .replace(/'/g, '&#39;');
 }
 
-// -------------------------------------------------------------
-// PAGE 6: SETTINGS
-// -------------------------------------------------------------
-async function renderSettingsPage(container) {
-    const res = await fetch('/api/health');
-    const health = res.ok ? await res.json() : {};
-
-    container.innerHTML = `
-        <div class="section-card" style="max-width: 700px;">
-            <div class="section-header">
-                <h2 class="section-title">System Settings & Data Status</h2>
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 16px;">
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                    <strong>Application Version:</strong>
-                    <span>ShelfIQ v1.0.0</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                    <strong>Backend Status:</strong>
-                    <span class="badge badge-healthy">${health.status || 'OK'}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                    <strong>CSV Data Load Status:</strong>
-                    <span class="badge ${health.data_loaded ? 'badge-healthy' : 'badge-critical'}">${health.data_loaded ? 'LOADED & VALIDATED' : 'FAILED'}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                    <strong>Supported Stores:</strong>
-                    <span>4 Stores (Hyderabad Central, Banjara Hills, Kukatpally, Secunderabad)</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                    <strong>Catalogue Size:</strong>
-                    <span>55 Products across 6 Categories</span>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// -------------------------------------------------------------
-// PRODUCT DETAIL MODAL
-// -------------------------------------------------------------
-async function openProductModal(productId) {
-    const modal = document.getElementById('product-modal');
-    const body = document.getElementById('modal-body');
-    const nameEl = document.getElementById('modal-product-name');
-    const subEl = document.getElementById('modal-product-sub');
-
-    if (!modal || !body) return;
-
-    body.innerHTML = '<div class="loading-state">Loading product details...</div>';
-    modal.classList.remove('hidden');
-
-    try {
-        const res = await fetch(`/api/products/${productId}`);
-        if (!res.ok) throw new Error("Product not found");
-
-        const data = await res.json();
-        
-        nameEl.textContent = data.product_name;
-        subEl.textContent = `ID: ${data.product_id} | Category: ${data.category}`;
-
-        const perf = data.sales_performance || {};
-
-        body.innerHTML = `
-            <div class="kpi-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 20px;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Unit Price</div>
-                    <div class="kpi-value">${formatINR(data.unit_price)}</div>
-                    <div class="kpi-sub">Cost: ${formatINR(data.cost_price)}</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Total Units Sold</div>
-                    <div class="kpi-value">${formatNumber(perf.total_units_sold || 0)}</div>
-                    <div class="kpi-sub">Revenue: ${formatINR(perf.total_sales_amount || 0)}</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Sales Trend</div>
-                    <div class="kpi-value">${perf.sales_trend || 'STABLE'}</div>
-                    <div class="kpi-sub">Avg ${perf.avg_daily_units || 0} u/day</div>
-                </div>
-            </div>
-
-            <h4 style="margin-bottom: 12px;">Store Inventory Breakdown</h4>
-            <div class="table-container" style="margin-bottom: 20px;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Store</th>
-                            <th>Current Stock</th>
-                            <th>Daily Sales</th>
-                            <th>Days Left</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.inventory_metrics.map(inv => `
-                            <tr>
-                                <td>${inv.store_name}</td>
-                                <td class="number-cell">${formatNumber(inv.current_stock)}</td>
-                                <td class="number-cell">${inv.average_daily_units_sold} u/d</td>
-                                <td class="number-cell">${inv.days_remaining_display}</td>
-                                <td><span class="badge ${getBadgeClassForStatus(inv.status)}">${inv.status}</span></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-
-            ${data.attention_items && data.attention_items.length > 0 ? `
-                <h4 style="margin-bottom: 12px;">Active Operational Alerts</h4>
-                <div class="attention-grid">
-                    ${data.attention_items.map(item => renderAttentionCardHTML(item)).join('')}
-                </div>
-            ` : '<p style="color: var(--text-muted); font-size: 13px;">No critical alerts active for this product.</p>'}
-        `;
-    } catch (err) {
-        body.innerHTML = `<div class="error-state">Failed to load details for product ${productId}.</div>`;
-    }
-}
-
-// -------------------------------------------------------------
-// CUSTOM OFFLINE SVG CHART RENDERER
-// -------------------------------------------------------------
-function renderSalesTrendSVG(container, dailyTrend = []) {
-    if (!container) return;
-
-    const trend = Array.isArray(dailyTrend) ? dailyTrend : [];
-    if (trend.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <p>Not enough sales data to render a trend chart.</p>
-            </div>
-        `;
-        return;
-    }
-
-    const recentTrend = trend.slice(-30);
-    const salesPoints = recentTrend.map(item => Number(item.sales_amount) || 0);
-
-    const maxVal = Math.max(...salesPoints, 100) * 1.15;
-    const width = 600;
-    const height = 210;
-    const paddingBottom = 26;
-    const paddingTop = 15;
-    const chartHeight = height - paddingBottom - paddingTop;
-    const barWidth = Math.max(6, (width / salesPoints.length) - 6);
-
-    // Generate SVG bars with blue gradient fill
-    const svgBars = salesPoints.map((val, idx) => {
-        const barHeight = Math.max(4, (val / maxVal) * chartHeight);
-        const x = idx * (barWidth + 6) + 12;
-        const y = height - paddingBottom - barHeight;
-        const dateStr = recentTrend[idx].date || '';
-
-        return `
-            <rect class="chart-bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="url(#barGrad)">
-                <title>${escapeHTML(dateStr)}: ${formatINR(val)}</title>
-            </rect>
-        `;
-    }).join('');
-
-    // Generate ~5 evenly spaced X-axis date labels
-    const step = Math.ceil(recentTrend.length / 5);
-    const dateLabels = recentTrend.map((item, idx) => {
-        if (idx % step === 0 || idx === recentTrend.length - 1) {
-            const x = idx * (barWidth + 6) + 12 + barWidth / 2;
-            const dateParts = item.date ? item.date.split('-') : [];
-            const label = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : item.date;
-            return `<text class="chart-axis-text" x="${x}" y="${height - 6}" text-anchor="middle">${escapeHTML(label)}</text>`;
-        }
-        return '';
-    }).join('');
-
-    // Horizontal grid lines
-    const gridY1 = height - paddingBottom - chartHeight * 0.5;
-    const gridY2 = height - paddingBottom - chartHeight * 0.95;
-
-    container.innerHTML = `
-        <svg class="svg-chart" viewBox="0 0 ${width} ${height}">
-            <defs>
-                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#3B82F6"/>
-                    <stop offset="100%" stop-color="#1D4ED8"/>
-                </linearGradient>
-            </defs>
-            <line x1="10" y1="${gridY1}" x2="${width - 10}" y2="${gridY1}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4" />
-            <line x1="10" y1="${gridY2}" x2="${width - 10}" y2="${gridY2}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4" />
-            <line x1="10" y1="${height - paddingBottom}" x2="${width - 10}" y2="${height - paddingBottom}" stroke="#CBD5E1" stroke-width="1" />
-            ${svgBars}
-            ${dateLabels}
-        </svg>
-    `;
-}
-
-// -------------------------------------------------------------
-// UTILITY HELPERS
-// -------------------------------------------------------------
 function formatINR(val) {
-    if (val === null || val === undefined || isNaN(val)) return '₹0.00';
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val);
+    if (val === null || val === undefined || isNaN(val)) return '₹0';
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
 }
 
 function formatNumber(val) {
@@ -1206,7 +1445,7 @@ function formatNumber(val) {
 function getBadgeClassForStatus(status) {
     switch ((status || '').toUpperCase()) {
         case 'CRITICAL': return 'badge-critical';
-        case 'HIGH': case 'LOW STOCK': return 'badge-high';
+        case 'HIGH': case 'LOW STOCK': case 'LOW_STOCK': return 'badge-high';
         case 'MEDIUM': case 'WATCH': return 'badge-medium';
         case 'HEALTHY': return 'badge-healthy';
         case 'OVERSTOCKED': return 'badge-overstocked';

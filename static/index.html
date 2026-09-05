@@ -3,18 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShelfIQ - Retail Sales & Inventory Copilot</title>
-    <link rel="stylesheet" href="/static/style.css?v=1.2">
+    <title>ShelfIQ - Smarter shelves. Better decisions.</title>
+    <meta name="description" content="ShelfIQ - Retail Sales & Inventory Copilot for smarter store decisions powered by AI.">
+    <link rel="stylesheet" href="/static/style.css?v=3.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
         <!-- Persistent Left Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="brand">
-                <div class="logo-icon">IQ</div>
+                <div class="logo-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 01-8 0"/>
+                    </svg>
+                </div>
                 <div class="brand-text">
                     <span class="brand-name">ShelfIQ</span>
                     <span class="brand-tagline">Smarter shelves. Better decisions.</span>
@@ -23,66 +30,76 @@
 
             <nav class="nav-menu">
                 <a href="#dashboard" class="nav-item active" data-page="dashboard" id="nav-dashboard">
-                    <span class="nav-icon">📊</span> Dashboard
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    Dashboard
                 </a>
                 <a href="#inventory" class="nav-item" data-page="inventory" id="nav-inventory">
-                    <span class="nav-icon">📦</span> Inventory
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                    Inventory
                 </a>
                 <a href="#sales" class="nav-item" data-page="sales" id="nav-sales">
-                    <span class="nav-icon">📈</span> Sales
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                    Sales
                 </a>
                 <a href="#attention" class="nav-item" data-page="attention" id="nav-attention">
-                    <span class="nav-icon">⚠️</span> Attention
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                    Alerts
                     <span id="attention-badge" class="badge-count hidden">0</span>
                 </a>
                 <a href="#copilot" class="nav-item" data-page="copilot" id="nav-copilot">
-                    <span class="nav-icon">🤖</span> AI Copilot
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    AI Insights
                 </a>
             </nav>
 
-            <div class="sidebar-footer">
+            <div class="sidebar-bottom">
+                <div class="sidebar-divider"></div>
                 <a href="#settings" class="nav-item" data-page="settings" id="nav-settings">
-                    <span class="nav-icon">⚙️</span> Settings
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 116.93 19.07M19.07 4.93A10 10 0 106.93 19.07"/></svg>
+                    Store Settings
                 </a>
+                <a href="#settings" class="nav-item" data-page="settings">
+                    <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Help & Support
+                </a>
+                <div class="upgrade-card">
+                    <div class="upgrade-icon">⭐</div>
+                    <div class="upgrade-text">
+                        <div class="upgrade-title">Upgrade to Pro</div>
+                        <div class="upgrade-desc">Unlock advanced analytics and AI features.</div>
+                    </div>
+                    <button class="btn-upgrade">Learn More</button>
+                </div>
             </div>
         </aside>
 
         <!-- Main Content Area -->
         <main class="main-content">
+            <!-- Top Header Bar -->
             <header class="top-header">
-                <div class="page-title-area">
-                    <h1 id="page-title">Dashboard</h1>
-                    <p id="page-subtitle" class="subtitle">Good morning. Here's what needs your attention today.</p>
+                <div class="header-search">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="global-search" placeholder='Search products, scan barcode, or try "low stock items"...' class="header-search-input">
+                    <span class="header-search-kbd">Ctrl K</span>
                 </div>
 
-                <div class="controls-area">
-                    <div class="control-group">
-                        <label for="store-select">Store Filter</label>
-                        <select id="store-select" class="form-select">
-                            <option value="all">All Stores</option>
-                            <option value="STR001">Hyderabad Central</option>
-                            <option value="STR002">Banjara Hills</option>
-                            <option value="STR003">Kukatpally</option>
-                            <option value="STR004">Secunderabad</option>
-                        </select>
-                    </div>
-
-                    <div class="control-group">
-                        <label for="date-range-select">Date Range</label>
-                        <select id="date-range-select" class="form-select">
-                            <option value="all">Full 90 Days</option>
-                            <option value="last_30_days">Last 30 Days</option>
-                            <option value="last_14_days">Last 14 Days</option>
-                            <option value="last_7_days">Last 7 Days</option>
-                        </select>
-                    </div>
-
-                    <button id="btn-refresh" class="btn btn-secondary" title="Refresh Page Data">
-                        🔄 Refresh
+                <div class="header-right">
+                    <button class="header-icon-btn" id="notif-btn" title="Notifications">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                        <span id="notif-badge" class="header-badge hidden">5</span>
                     </button>
+                    <div class="header-user">
+                        <div class="header-avatar">AB</div>
+                        <div class="header-user-info">
+                            <div class="header-user-name">Abhi</div>
+                            <div class="header-user-role">Store Manager</div>
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
                 </div>
             </header>
 
+            <!-- Page Content -->
             <section id="content-viewport" class="viewport">
                 <!-- Dynamic Page Content Injected via app.js -->
             </section>
@@ -105,6 +122,66 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=1.2"></script>
+    <!-- Add Product Modal -->
+    <div id="add-product-modal" class="modal-backdrop hidden">
+        <div class="modal-card" style="max-width: 520px;">
+            <div class="modal-header">
+                <div>
+                    <h2>Add New Product</h2>
+                    <p class="subtitle">Add a product to your catalogue</p>
+                </div>
+                <button class="btn-close" onclick="document.getElementById('add-product-modal').classList.add('hidden')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-product-form" style="display:flex;flex-direction:column;gap:16px;">
+                    <div class="form-group">
+                        <label class="form-label">Product Name *</label>
+                        <input type="text" id="ap-name" class="form-input" placeholder="e.g. Premium Basmati Rice 5kg" required>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">Category *</label>
+                            <select id="ap-category" class="form-select" required>
+                                <option value="">Select...</option>
+                                <option>Beverages</option><option>Groceries</option><option>Snacks</option>
+                                <option>Personal Care</option><option>Household</option><option>Others</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Store (optional)</label>
+                            <select id="ap-store" class="form-select">
+                                <option value="">All Stores</option>
+                                <option value="STR001">Hyderabad Central</option>
+                                <option value="STR002">Banjara Hills</option>
+                                <option value="STR003">Kukatpally</option>
+                                <option value="STR004">Secunderabad</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">Unit Price (₹) *</label>
+                            <input type="number" id="ap-price" class="form-input" placeholder="0.00" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cost Price (₹) *</label>
+                            <input type="number" id="ap-cost" class="form-input" placeholder="0.00" step="0.01" min="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Initial Stock</label>
+                            <input type="number" id="ap-stock" class="form-input" placeholder="50" min="0" value="50">
+                        </div>
+                    </div>
+                    <div id="add-product-result" class="hidden"></div>
+                    <div style="display:flex;gap:12px;justify-content:flex-end;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-product-modal').classList.add('hidden')">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="btn-add-product-submit">+ Add Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=3.0"></script>
 </body>
 </html>
