@@ -1,0 +1,56 @@
+product_id,product_name,category,unit_price,cost_price
+PRD001,Premium Basmati Rice 5kg,Groceries,550.00,420.00
+PRD002,Refined Sunflower Oil 1L,Groceries,165.00,130.00
+PRD003,Whole Wheat Atta 5kg,Groceries,245.00,190.00
+PRD004,Instant Noodles 4-Pack,Groceries,60.00,45.00
+PRD005,Organic Raw Honey 500g,Groceries,380.00,270.00
+PRD006,Toor Dal Premium 1kg,Groceries,175.00,135.00
+PRD007,Iodized Crystal Salt 1kg,Groceries,28.00,18.00
+PRD008,Refined Sugar 1kg,Groceries,52.00,40.00
+PRD009,White Poha 500g,Groceries,45.00,32.00
+PRD010,Roasted Vermicelli 400g,Groceries,38.00,26.00
+PRD011,Fresh Mango Juice 1L,Beverages,110.00,75.00
+PRD012,Green Tea Lemon 100g,Beverages,220.00,150.00
+PRD013,Carbonated Cola 1.25L,Beverages,65.00,42.00
+PRD014,Sparkling Water 500ml,Beverages,40.00,22.00
+PRD015,Packaged Mineral Water 1L,Beverages,20.00,10.00
+PRD016,Instant Coffee Powder 100g,Beverages,290.00,200.00
+PRD017,Natural Coconut Water 200ml,Beverages,50.00,32.00
+PRD018,Energy Drink Citrus 250ml,Beverages,125.00,80.00
+PRD019,Roasted Filter Coffee 250g,Beverages,195.00,135.00
+PRD020,Spicy Potato Chips 100g,Snacks,35.00,22.00
+PRD021,Chocolate Chip Biscuits 150g,Snacks,45.00,28.00
+PRD022,Salted Roasted Cashews 200g,Snacks,280.00,200.00
+PRD023,Premium Almonds 250g,Snacks,320.00,230.00
+PRD024,Dark Chocolate 100g,Snacks,150.00,95.00
+PRD025,Masala Peanut Chutney 200g,Snacks,60.00,38.00
+PRD026,Multigrain Crackers 120g,Snacks,75.00,50.00
+PRD027,Roasted Corn Snacks 150g,Snacks,40.00,25.00
+PRD028,Cream Biscuits 120g,Snacks,30.00,18.00
+PRD029,Herbal Hair Shampoo 250ml,Personal Care,240.00,160.00
+PRD030,Gentle Face Wash 150ml,Personal Care,185.00,120.00
+PRD031,Antibacterial Hand Wash 250ml,Personal Care,95.00,60.00
+PRD032,Herbal Soap 125g (3-pack),Personal Care,120.00,80.00
+PRD033,Fluoride Toothpaste 150g,Personal Care,85.00,52.00
+PRD034,Moisturizing Body Lotion 200ml,Personal Care,260.00,175.00
+PRD035,Sunscreen Lotion SPF50 100ml,Personal Care,420.00,270.00
+PRD036,Hair Conditioner 180ml,Personal Care,210.00,140.00
+PRD037,Deodorant Spray 150ml,Personal Care,199.00,130.00
+PRD038,Dishwashing Gel Lemon 500ml,Household,115.00,75.00
+PRD039,Laundry Detergent Powder 1kg,Household,180.00,120.00
+PRD040,Floor Cleaner Citrus 1L,Household,145.00,92.00
+PRD041,Toilet Cleaner 500ml,Household,98.00,62.00
+PRD042,Garbage Bags Medium 30s,Household,130.00,80.00
+PRD043,Fabric Softener 800ml,Household,210.00,140.00
+PRD044,Kitchen Towel Roll 2s,Household,110.00,68.00
+PRD045,Insect Repellent Spray 250ml,Household,175.00,110.00
+PRD046,Air Freshener Spray 220ml,Household,160.00,100.00
+PRD047,Toned Milk 1L,Dairy,56.00,44.00
+PRD048,Fresh Greek Yogurt 200g,Dairy,70.00,48.00
+PRD049,Salted Butter 100g,Dairy,58.00,42.00
+PRD050,Paneer Fresh 200g,Dairy,95.00,70.00
+PRD051,New Energy Whey Bar 50g,Dairy,90.00,55.00
+PRD052,New Protein Shake 300ml,Dairy,140.00,90.00
+PRD053,Gourmet Imported Cheese 200g,Dairy,450.00,320.00
+PRD054,Premium Artisanal Tea 250g,Beverages,650.00,450.00
+PRD055,Organic Quinoa Oats 500g,Groceries,390.00,260.00
