@@ -160,6 +160,14 @@ class TestGeminiIntegration(unittest.TestCase):
         self.assertIn("recommendation", data)
         self.assertIn("data_sufficiency", data)
 
+    def test_copilot_query_alias_endpoint(self):
+        """Test POST /api/copilot/query compatibility endpoint."""
+        res = self.client.post("/api/copilot/query", json={"question": "What should I review today?"})
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["intent"], "GENERAL_ATTENTION")
+        self.assertIn("evidence", data)
+
     def test_ai_analyze_api_endpoint_validation(self):
         """Test validation for empty question and invalid store_id."""
         # Empty question -> 400
@@ -171,6 +179,50 @@ class TestGeminiIntegration(unittest.TestCase):
         res_invalid_store = self.client.post("/api/ai/analyze", json={"question": "Show sales", "store_id": "INVALID_STORE"})
         self.assertEqual(res_invalid_store.status_code, 400)
         self.assertIn("Invalid store_id", res_invalid_store.json()["detail"])
+
+        # Malformed request body -> 422
+        res_malformed = self.client.post("/api/ai/analyze", json={"store_id": "STR001"})
+        self.assertEqual(res_malformed.status_code, 422)
+
+        # Long input -> 400
+        res_long = self.client.post("/api/ai/analyze", json={"question": "x" * 501})
+        self.assertEqual(res_long.status_code, 400)
+        self.assertIn("maximum 500 characters", res_long.json()["detail"])
+
+    def test_ai_analyze_internal_error_is_sanitized(self):
+        """Test internal copilot failures do not expose stack traces or secrets."""
+        from fastapi import FastAPI
+        from src.api import create_api_router
+
+        class MinimalDataLoader:
+            is_loaded = True
+            last_validation_result = None
+
+            def get_stores(self):
+                return [{"store_id": "STR001", "store_name": "Hyderabad Central", "city": "Hyderabad"}]
+
+            def get_products(self):
+                return [{"product_id": "PRD001", "product_name": "Rice", "category": "Groceries"}]
+
+        class FailingQueryEngine:
+            def process_query(self, **kwargs):
+                raise RuntimeError("stack trace with GEMINI_API_KEY=secret-value")
+
+        failure_app = FastAPI()
+        failure_app.include_router(create_api_router(
+            MinimalDataLoader(),
+            analytics_engine=None,
+            attention_engine=None,
+            query_engine=FailingQueryEngine()
+        ))
+        client = TestClient(failure_app)
+
+        res = client.post("/api/ai/analyze", json={"question": "Which products are running out?"})
+        self.assertEqual(res.status_code, 500)
+        detail = res.json()["detail"]
+        self.assertIn("temporarily unavailable", detail)
+        self.assertNotIn("secret-value", detail)
+        self.assertNotIn("stack trace", detail)
 
     @unittest.skipUnless(os.getenv("GEMINI_API_KEY"), "Real Gemini API integration test skipped because GEMINI_API_KEY is not set.")
     def test_real_gemini_integration(self):

@@ -61,6 +61,7 @@ def create_api_router(data_loader, analytics_engine, attention_engine, query_eng
     async def get_summary():
         """Executive summary metrics across all stores and categories."""
         sales_sum = analytics_engine.calculate_sales_summary()
+        sales_growth = analytics_engine.calculate_sales_growth()
         stores_sum = analytics_engine.calculate_store_summary()
         cat_sum = analytics_engine.calculate_category_summary()
         
@@ -74,6 +75,7 @@ def create_api_router(data_loader, analytics_engine, attention_engine, query_eng
             total_products=len(products),
             total_stores=len(stores),
             inventory_value=total_inv_val,
+            sales_growth=sales_growth,
             date_range=DateRange(
                 start_date=sales_sum["date_range"]["start_date"],
                 end_date=sales_sum["date_range"]["end_date"]
@@ -201,9 +203,23 @@ def create_api_router(data_loader, analytics_engine, attention_engine, query_eng
             category=category,
             product_id=product_id
         )
+        daily_trend = analytics_engine.calculate_daily_sales_trend(
+            store_id=store_id,
+            category=category,
+            start_date=start_date,
+            end_date=end_date
+        )
+        sales_growth = analytics_engine.calculate_sales_growth(
+            store_id=store_id,
+            category=category,
+            start_date=start_date,
+            end_date=end_date
+        )
 
         return {
             "summary": sales_sum,
+            "daily_trend": daily_trend,
+            "sales_growth": sales_growth,
             "product_performance_count": len(perf),
             "product_performance": perf
         }
@@ -249,8 +265,7 @@ def create_api_router(data_loader, analytics_engine, attention_engine, query_eng
             "attention_items": attention_items
         }
 
-    @router.post("/ai/analyze", response_model=CopilotResponseSchema)
-    async def analyze_question(payload: CopilotRequestSchema):
+    async def _analyze_copilot_payload(payload: CopilotRequestSchema):
         """Analyze natural-language user question grounded in deterministic retail evidence."""
         if not payload.question or not payload.question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty.")
@@ -272,7 +287,20 @@ def create_api_router(data_loader, analytics_engine, attention_engine, query_eng
                 previous_product_id=payload.previous_product_id
             )
             return res
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Copilot query execution failed: {str(e)}")
+        except Exception:
+            raise HTTPException(
+                status_code=500,
+                detail="Copilot analysis is temporarily unavailable. Please try again."
+            )
+
+    @router.post("/ai/analyze", response_model=CopilotResponseSchema)
+    async def analyze_question(payload: CopilotRequestSchema):
+        """Primary grounded ShelfIQ Copilot endpoint."""
+        return await _analyze_copilot_payload(payload)
+
+    @router.post("/copilot/query", response_model=CopilotResponseSchema)
+    async def query_copilot(payload: CopilotRequestSchema):
+        """Compatibility endpoint for grounded ShelfIQ Copilot queries."""
+        return await _analyze_copilot_payload(payload)
 
     return router

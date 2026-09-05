@@ -23,6 +23,7 @@ class SummaryResponse(BaseModel):
     total_products: int
     total_stores: int
     inventory_value: float
+    sales_growth: Dict[str, Any]
     date_range: DateRange
     stores_summary: List[Dict[str, Any]]
     category_summary: List[Dict[str, Any]]

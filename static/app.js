@@ -140,8 +140,8 @@ async function loadPage(pageName) {
         console.error("Error loading page:", err);
         viewport.innerHTML = `
             <div class="error-state">
-                <h3>⚠️ Unable to load ${config.title}</h3>
-                <p style="margin-top: 8px;">${err.message || 'Error communicating with backend API.'}</p>
+                <h3>Unable to load ${escapeHTML(config.title)}</h3>
+                <p style="margin-top: 8px;">Unable to connect to ShelfIQ. Please try again.</p>
                 <button class="btn btn-secondary" onclick="loadPage('${pageName}')" style="margin-top: 16px;">Try Again</button>
             </div>
         `;
@@ -170,6 +170,25 @@ async function fetchAttentionBadge() {
 // -------------------------------------------------------------
 // PAGE 1: DASHBOARD
 // -------------------------------------------------------------
+function buildSalesQueryParams() {
+    const params = new URLSearchParams();
+    if (state.selectedStore !== 'all') params.set('store_id', state.selectedStore);
+
+    const endDate = '2026-08-29';
+    const ranges = {
+        last_30_days: '2026-07-31',
+        last_14_days: '2026-08-16',
+        last_7_days: '2026-08-23'
+    };
+    if (state.selectedDateRange !== 'all' && ranges[state.selectedDateRange]) {
+        params.set('start_date', ranges[state.selectedDateRange]);
+        params.set('end_date', endDate);
+    }
+
+    const query = params.toString();
+    return query ? `?${query}` : '';
+}
+
 async function renderDashboardPage(container) {
     const storeParam = state.selectedStore !== 'all' ? `?store_id=${state.selectedStore}` : '';
     const [summaryRes, attentionRes] = await Promise.all([
@@ -194,6 +213,14 @@ async function renderDashboardPage(container) {
     const critCount = attention.severity_counts ? (attention.severity_counts.CRITICAL + attention.severity_counts.HIGH) : 0;
 
     const topAttentions = (attention.attention_items || []).slice(0, 5);
+    const salesRes = await fetch(`/api/sales${buildSalesQueryParams()}`);
+    const salesData = salesRes.ok ? await salesRes.json() : { daily_trend: [], product_performance: [], sales_growth: summary.sales_growth };
+    const topProducts = [...(salesData.product_performance || [])]
+        .sort((a, b) => b.total_sales_amount - a.total_sales_amount)
+        .slice(0, 5);
+    const salesGrowth = salesData.sales_growth || summary.sales_growth || {};
+    const growthValue = salesGrowth.percentage_change;
+    const growthDisplay = growthValue === null || growthValue === undefined ? 'N/A' : `${growthValue > 0 ? '+' : ''}${growthValue}%`;
 
     container.innerHTML = `
         <!-- KPI Cards -->
@@ -204,9 +231,9 @@ async function renderDashboardPage(container) {
                 <div class="kpi-sub">Period: ${summary.date_range.start_date} to ${summary.date_range.end_date}</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Total Units Sold</div>
-                <div class="kpi-value">${formatNumber(state.selectedStore !== 'all' ? storeSummary.total_units_sold : summary.total_units_sold)}</div>
-                <div class="kpi-sub">Across catalogue products</div>
+                <div class="kpi-label">Sales Growth</div>
+                <div class="kpi-value" style="color: ${growthValue >= 0 ? '#047857' : '#B91C1C'};">${growthDisplay}</div>
+                <div class="kpi-sub">${escapeHTML(salesGrowth.period || 'Selected period comparison')}</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Inventory Valuation</div>
@@ -217,6 +244,35 @@ async function renderDashboardPage(container) {
                 <div class="kpi-label">Urgent Issues</div>
                 <div class="kpi-value" style="color: ${critCount > 0 ? '#B91C1C' : '#047857'};">${critCount}</div>
                 <div class="kpi-sub">Critical / High severity alerts</div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Top Products</h2>
+                <span class="badge badge-info">By Revenue</span>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Revenue</th>
+                            <th>Units</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${topProducts.map(p => `
+                            <tr onclick="openProductModal('${p.product_id}')">
+                                <td><strong>${escapeHTML(p.product_name)}</strong></td>
+                                <td>${escapeHTML(p.category)}</td>
+                                <td class="number-cell">${formatINR(p.total_sales_amount)}</td>
+                                <td class="number-cell">${formatNumber(p.total_units_sold)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -271,7 +327,7 @@ async function renderDashboardPage(container) {
         </div>
     `;
 
-    renderSalesTrendSVG(document.getElementById('dashboard-chart-container'));
+    renderSalesTrendSVG(document.getElementById('dashboard-chart-container'), salesData.daily_trend || []);
 }
 
 // -------------------------------------------------------------
@@ -408,8 +464,7 @@ function renderInventoryTableRows(items) {
 // PAGE 3: SALES ANALYTICS
 // -------------------------------------------------------------
 async function renderSalesPage(container) {
-    let url = '/api/sales';
-    if (state.selectedStore !== 'all') url += `?store_id=${state.selectedStore}`;
+    let url = `/api/sales${buildSalesQueryParams()}`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to load sales analytics data.");
@@ -419,6 +474,9 @@ async function renderSalesPage(container) {
 
     const summary = data.summary || {};
     const products = data.product_performance || [];
+    const salesGrowth = data.sales_growth || {};
+    const growthValue = salesGrowth.percentage_change;
+    const growthDisplay = growthValue === null || growthValue === undefined ? 'N/A' : `${growthValue > 0 ? '+' : ''}${growthValue}%`;
 
     const topProducts = [...products].sort((a, b) => b.total_sales_amount - a.total_sales_amount).slice(0, 5);
     const bottomProducts = [...products].sort((a, b) => a.total_sales_amount - b.total_sales_amount).slice(0, 5);
@@ -442,9 +500,9 @@ async function renderSalesPage(container) {
                 <div class="kpi-sub">Across active observation period</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Average Daily Units</div>
-                <div class="kpi-value">${summary.avg_daily_units_sold || 0} u/day</div>
-                <div class="kpi-sub">Daily store sales velocity</div>
+                <div class="kpi-label">Sales Growth</div>
+                <div class="kpi-value" style="color: ${growthValue >= 0 ? '#047857' : '#B91C1C'};">${growthDisplay}</div>
+                <div class="kpi-sub">Recent half vs previous half</div>
             </div>
         </div>
 
@@ -519,7 +577,7 @@ async function renderSalesPage(container) {
         </div>
     `;
 
-    renderSalesTrendSVG(document.getElementById('sales-chart-container'));
+    renderSalesTrendSVG(document.getElementById('sales-chart-container'), data.daily_trend || []);
 }
 
 // -------------------------------------------------------------
@@ -1022,16 +1080,22 @@ async function openProductModal(productId) {
 // -------------------------------------------------------------
 // CUSTOM OFFLINE SVG CHART RENDERER
 // -------------------------------------------------------------
-function renderSalesTrendSVG(container) {
+function renderSalesTrendSVG(container, dailyTrend = []) {
     if (!container) return;
 
-    // Daily sales revenue sample simulation from historical analytics
-    const salesPoints = [
-        165000, 172000, 158000, 189000, 195000, 210000, 182000,
-        175000, 168000, 192000, 205000, 198000, 220000, 215000
-    ];
+    const trend = Array.isArray(dailyTrend) ? dailyTrend : [];
+    if (trend.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>Not enough sales data to render a trend chart.</p>
+            </div>
+        `;
+        return;
+    }
 
-    const maxVal = Math.max(...salesPoints) * 1.1;
+    const salesPoints = trend.slice(-30).map(item => Number(item.sales_amount) || 0);
+
+    const maxVal = Math.max(...salesPoints, 1) * 1.1;
     const width = 600;
     const height = 200;
     const barWidth = (width / salesPoints.length) - 8;
@@ -1043,9 +1107,9 @@ function renderSalesTrendSVG(container) {
 
         return `
             <rect class="chart-bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4">
-                <title>Day ${idx + 1}: ${formatINR(val)}</title>
+                <title>${escapeHTML(trend.slice(-30)[idx].date)}: ${formatINR(val)}</title>
             </rect>
-            <text class="chart-axis-text" x="${x + barWidth/2}" y="${height - 4}" text-anchor="middle">D${idx + 1}</text>
+            <text class="chart-axis-text" x="${x + barWidth/2}" y="${height - 4}" text-anchor="middle">${idx + 1}</text>
         `;
     }).join('');
 

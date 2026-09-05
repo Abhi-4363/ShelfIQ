@@ -234,6 +234,84 @@ class AnalyticsEngine:
 
         return results
 
+    def calculate_daily_sales_trend(
+        self,
+        store_id: Optional[str] = None,
+        category: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Calculate daily sales totals for charts and period comparisons."""
+        sales = self._get_sales_data(store_id, category)
+        daily: Dict[str, Dict[str, Any]] = {}
+
+        for row in sales:
+            row_date = row["date"]
+            if start_date and row_date < start_date:
+                continue
+            if end_date and row_date > end_date:
+                continue
+
+            if row_date not in daily:
+                daily[row_date] = {
+                    "date": row_date,
+                    "sales_amount": 0.0,
+                    "units_sold": 0,
+                    "transactions": 0
+                }
+            daily[row_date]["sales_amount"] += row["sales_amount"]
+            daily[row_date]["units_sold"] += row["units_sold"]
+            daily[row_date]["transactions"] += 1
+
+        return [
+            {
+                "date": item["date"],
+                "sales_amount": round(item["sales_amount"], 2),
+                "units_sold": item["units_sold"],
+                "transactions": item["transactions"]
+            }
+            for item in sorted(daily.values(), key=lambda x: x["date"])
+        ]
+
+    def calculate_sales_growth(
+        self,
+        store_id: Optional[str] = None,
+        category: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Compare recent half of the selected period against the previous half."""
+        trend = self.calculate_daily_sales_trend(store_id, category, start_date, end_date)
+        if len(trend) < 2:
+            return {
+                "percentage_change": None,
+                "recent_sales": 0.0,
+                "baseline_sales": 0.0,
+                "period": "Insufficient comparable history",
+                "data_sufficiency": "INSUFFICIENT"
+            }
+
+        midpoint = len(trend) // 2
+        baseline = trend[:midpoint]
+        recent = trend[midpoint:]
+        baseline_sales = round(sum(d["sales_amount"] for d in baseline), 2)
+        recent_sales = round(sum(d["sales_amount"] for d in recent), 2)
+
+        if baseline_sales <= 0:
+            percentage_change = None
+            sufficiency = "INSUFFICIENT"
+        else:
+            percentage_change = round(((recent_sales - baseline_sales) / baseline_sales) * 100.0, 1)
+            sufficiency = self.evaluate_data_sufficiency(len(trend))
+
+        return {
+            "percentage_change": percentage_change,
+            "recent_sales": recent_sales,
+            "baseline_sales": baseline_sales,
+            "period": "Recent half vs previous half of selected date range",
+            "data_sufficiency": sufficiency
+        }
+
     def calculate_inventory_metrics(
         self,
         store_id: Optional[str] = None,

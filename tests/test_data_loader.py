@@ -107,6 +107,58 @@ class TestDataLoader(unittest.TestCase):
             self.assertFalse(is_valid)
             self.assertTrue(any("Invalid store_id reference" in e.message for e in result.errors))
 
+    def test_missing_csv_file(self):
+        """Test detection of a missing required CSV file."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            self._create_minimal_valid_csvs(tmp_dir)
+            os.remove(os.path.join(tmp_dir, "sales.csv"))
+
+            loader = DataLoader(tmp_dir)
+            is_valid, result = loader.load_all_data()
+            self.assertFalse(is_valid)
+            self.assertTrue(any("Required data file missing" in e.message for e in result.errors))
+
+    def test_invalid_product_reference(self):
+        """Test detection of invalid product_id reference in sales."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            self._create_minimal_valid_csvs(tmp_dir)
+
+            with open(os.path.join(tmp_dir, "sales.csv"), "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["date", "store_id", "product_id", "units_sold", "sales_amount"])
+                writer.writerow(["2026-08-01", "STR001", "PRD999", "2", "1100.0"])
+
+            loader = DataLoader(tmp_dir)
+            is_valid, result = loader.load_all_data()
+            self.assertFalse(is_valid)
+            self.assertTrue(any("Invalid product_id reference" in e.message for e in result.errors))
+
+    def test_invalid_dates_and_missing_values(self):
+        """Test clear validation errors for invalid dates and required missing values."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            self._create_minimal_valid_csvs(tmp_dir)
+
+            with open(os.path.join(tmp_dir, "stores.csv"), "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["store_id", "store_name", "city"])
+                writer.writerow(["", "Missing ID Store", "Hyderabad"])
+
+            with open(os.path.join(tmp_dir, "inventory.csv"), "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["store_id", "product_id", "current_stock", "last_updated"])
+                writer.writerow(["STR001", "PRD001", "50", "bad-date"])
+
+            with open(os.path.join(tmp_dir, "sales.csv"), "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["date", "store_id", "product_id", "units_sold", "sales_amount"])
+                writer.writerow(["bad-date", "STR001", "PRD001", "2", "1100.0"])
+
+            loader = DataLoader(tmp_dir)
+            is_valid, result = loader.load_all_data()
+            self.assertFalse(is_valid)
+            self.assertTrue(any("Missing required field" in e.message for e in result.errors))
+            self.assertTrue(any("Invalid ISO date format" in e.message for e in result.errors))
+
     def test_mathematical_mismatch(self):
         """Test detection of mathematical inconsistency in sales_amount."""
         with tempfile.TemporaryDirectory() as tmp_dir:

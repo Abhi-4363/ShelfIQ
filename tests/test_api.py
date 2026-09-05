@@ -46,6 +46,8 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(data["total_stores"], 4)
         self.assertEqual(len(data["stores_summary"]), 4)
         self.assertEqual(len(data["category_summary"]), 6)
+        self.assertIn("sales_growth", data)
+        self.assertIn("percentage_change", data["sales_growth"])
 
     def test_inventory_endpoint_and_filters(self):
         """Test GET /api/inventory with store, status, category, and search filters."""
@@ -80,7 +82,12 @@ class TestAPI(unittest.TestCase):
         # Date range filter
         res_date = self.client.get("/api/sales?start_date=2026-08-01&end_date=2026-08-15")
         self.assertEqual(res_date.status_code, 200)
-        self.assertEqual(res_date.json()["summary"]["date_range"]["start_date"], "2026-08-01")
+        date_data = res_date.json()
+        self.assertEqual(date_data["summary"]["date_range"]["start_date"], "2026-08-01")
+        self.assertIn("daily_trend", date_data)
+        self.assertIn("sales_growth", date_data)
+        self.assertEqual(date_data["daily_trend"][0]["date"], "2026-08-01")
+        self.assertEqual(date_data["daily_trend"][-1]["date"], "2026-08-15")
 
     def test_attention_endpoint_and_filters(self):
         """Test GET /api/attention with store_id, attention_type, and severity filters."""
@@ -152,6 +159,35 @@ class TestAPI(unittest.TestCase):
         res = self.client.get("/openapi.json")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["info"]["title"], "ShelfIQ")
+
+    def test_static_frontend_has_no_credentials(self):
+        """Test frontend assets do not contain backend credentials."""
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        frontend_paths = [
+            os.path.join(repo_root, "static", "app.js"),
+            os.path.join(repo_root, "static", "index.html"),
+        ]
+
+        for path in frontend_paths:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertNotIn("GEMINI_API_KEY", content)
+            self.assertNotIn("AIza", content)
+            self.assertNotIn("secret-value", content)
+
+    def test_static_frontend_uses_friendly_error_copy(self):
+        """Test frontend avoids raw technical API errors for common failure states."""
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        app_js_path = os.path.join(repo_root, "static", "app.js")
+        with open(app_js_path, "r", encoding="utf-8") as f:
+            app_js = f.read()
+
+        self.assertIn("Unable to connect to ShelfIQ. Please try again.", app_js)
+        self.assertIn("Copilot is temporarily unavailable", app_js)
+        self.assertIn("No products match", app_js)
+        self.assertIn("buildSalesQueryParams", app_js)
+        self.assertNotIn("sample simulation", app_js)
+        self.assertNotIn("alert(\"Copilot Error:", app_js)
 
 if __name__ == "__main__":
     unittest.main()
