@@ -222,97 +222,136 @@ async function renderDashboardPage(container) {
     const growthValue = salesGrowth.percentage_change;
     const growthDisplay = growthValue === null || growthValue === undefined ? 'N/A' : `${growthValue > 0 ? '+' : ''}${growthValue}%`;
 
+    // Build top products ranked list HTML
+    const maxRevenue = topProducts.length > 0 ? topProducts[0].total_sales_amount : 1;
+    const rankColors = ['#2563EB', '#7C3AED', '#059669', '#D97706', '#DC2626'];
+    const rankEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+
+    const topProductCardsHTML = topProducts.map((p, i) => {
+        const barPct = Math.max(8, Math.round((p.total_sales_amount / maxRevenue) * 100));
+        const color = rankColors[i] || '#64748B';
+        return `
+            <div class="top-product-card" onclick="openProductModal('${p.product_id}')" title="Click to view details">
+                <div class="top-product-rank" style="background:${color};">${i + 1}</div>
+                <div class="top-product-info">
+                    <div class="top-product-name">${escapeHTML(p.product_name)}</div>
+                    <div class="top-product-meta">
+                        <span class="top-product-category">${escapeHTML(p.category)}</span>
+                        <span class="top-product-units">${formatNumber(p.total_units_sold)} units</span>
+                    </div>
+                    <div class="top-product-bar-wrap">
+                        <div class="top-product-bar" style="width:${barPct}%; background:${color};"></div>
+                    </div>
+                </div>
+                <div class="top-product-revenue" style="color:${color};">${formatINR(p.total_sales_amount)}</div>
+            </div>
+        `;
+    }).join('');
+
     container.innerHTML = `
         <!-- KPI Cards -->
         <div class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-label">Total Revenue</div>
-                <div class="kpi-value">${formatINR(totalSales)}</div>
-                <div class="kpi-sub">Period: ${summary.date_range.start_date} to ${summary.date_range.end_date}</div>
+            <div class="kpi-card kpi-card--revenue">
+                <div class="kpi-card-icon">💰</div>
+                <div class="kpi-card-body">
+                    <div class="kpi-label">Total Revenue</div>
+                    <div class="kpi-value">${formatINR(totalSales)}</div>
+                    <div class="kpi-sub">📅 ${summary.date_range.start_date} → ${summary.date_range.end_date}</div>
+                </div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Sales Growth</div>
-                <div class="kpi-value" style="color: ${growthValue >= 0 ? '#047857' : '#B91C1C'};">${growthDisplay}</div>
-                <div class="kpi-sub">${escapeHTML(salesGrowth.period || 'Selected period comparison')}</div>
+            <div class="kpi-card kpi-card--growth">
+                <div class="kpi-card-icon">${growthValue >= 0 ? '📈' : '📉'}</div>
+                <div class="kpi-card-body">
+                    <div class="kpi-label">Sales Growth</div>
+                    <div class="kpi-value" style="color: ${growthValue >= 0 ? '#047857' : '#B91C1C'};">${growthDisplay}</div>
+                    <div class="kpi-sub">${escapeHTML(salesGrowth.period || 'Selected period comparison')}</div>
+                </div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Inventory Valuation</div>
-                <div class="kpi-value">${formatINR(invValue)}</div>
-                <div class="kpi-sub">Current stock value</div>
+            <div class="kpi-card kpi-card--inventory">
+                <div class="kpi-card-icon">📦</div>
+                <div class="kpi-card-body">
+                    <div class="kpi-label">Inventory Value</div>
+                    <div class="kpi-value">${formatINR(invValue)}</div>
+                    <div class="kpi-sub">Current total stock value</div>
+                </div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-label">Urgent Issues</div>
-                <div class="kpi-value" style="color: ${critCount > 0 ? '#B91C1C' : '#047857'};">${critCount}</div>
-                <div class="kpi-sub">Critical / High severity alerts</div>
+            <div class="kpi-card kpi-card--alerts">
+                <div class="kpi-card-icon">${critCount > 0 ? '🚨' : '✅'}</div>
+                <div class="kpi-card-body">
+                    <div class="kpi-label">Urgent Issues</div>
+                    <div class="kpi-value" style="color: ${critCount > 0 ? '#B91C1C' : '#047857'};">${critCount}</div>
+                    <div class="kpi-sub">Critical &amp; High severity alerts</div>
+                </div>
             </div>
         </div>
 
-        <div class="section-card">
-            <div class="section-header">
-                <h2 class="section-title">Top Products</h2>
-                <span class="badge badge-info">By Revenue</span>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Category</th>
-                            <th>Revenue</th>
-                            <th>Units</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${topProducts.map(p => `
-                            <tr onclick="openProductModal('${p.product_id}')">
-                                <td><strong>${escapeHTML(p.product_name)}</strong></td>
-                                <td>${escapeHTML(p.category)}</td>
-                                <td class="number-cell">${formatINR(p.total_sales_amount)}</td>
-                                <td class="number-cell">${formatNumber(p.total_units_sold)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Sales Trend & Health Grid -->
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;" class="dashboard-middle">
+        <!-- Two column: Top Products + Inventory Health -->
+        <div class="dashboard-top-row">
+            <!-- Top Products: Ranked Cards -->
             <div class="section-card">
                 <div class="section-header">
-                    <h2 class="section-title">Sales Trend</h2>
-                    <span class="badge badge-info">Daily Revenue</span>
+                    <div>
+                        <h2 class="section-title">🏆 Top Products</h2>
+                        <div class="subtitle" style="margin-top:2px;">By revenue — click any card to drill down</div>
+                    </div>
+                    <span class="badge badge-info">Top 5</span>
                 </div>
-                <div id="dashboard-chart-container" class="chart-container">
-                    <!-- SVG Chart injected below -->
+                <div class="top-products-list">
+                    ${topProductCardsHTML || '<div class="empty-state"><p>No product data available.</p></div>'}
                 </div>
             </div>
 
+            <!-- Inventory Health -->
             <div class="section-card">
                 <div class="section-header">
-                    <h2 class="section-title">Inventory Health</h2>
+                    <h2 class="section-title">📊 Inventory Health</h2>
                 </div>
                 <div class="health-grid" style="grid-template-columns: 1fr;">
                     <div class="health-card critical">
                         <div class="health-count">${attention.severity_counts ? attention.severity_counts.CRITICAL : 0}</div>
-                        <div class="health-label">Critical Stock-Out Risk</div>
+                        <div class="health-label">🔴 Critical Stock-Out Risk</div>
                     </div>
                     <div class="health-card watch">
                         <div class="health-count">${attention.severity_counts ? attention.severity_counts.HIGH : 0}</div>
-                        <div class="health-label">High Priority Risks</div>
+                        <div class="health-label">🟠 High Priority Risks</div>
                     </div>
                     <div class="health-card healthy">
-                        <div class="health-count">${summary.total_products * summary.total_stores - (attention.count || 0)}</div>
-                        <div class="health-label">Healthy Items</div>
+                        <div class="health-count">${Math.max(0, summary.total_products * summary.total_stores - (attention.count || 0))}</div>
+                        <div class="health-label">🟢 Healthy Items</div>
                     </div>
                 </div>
+                <div style="margin-top:16px; padding-top:16px; border-top: 1px solid var(--border-color);">
+                    <div class="section-title" style="font-size:13px; margin-bottom:10px;">Store Coverage</div>
+                    <div style="display:flex; gap:8px; flex-wrap: wrap;">
+                        <span class="badge badge-info">📍 ${summary.total_stores} Stores</span>
+                        <span class="badge badge-info">📦 ${summary.total_products} Products</span>
+                        <span class="badge badge-info">📊 ${summary.total_transactions || 'N/A'} Txns</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Trend Chart -->
+        <div class="section-card">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">📈 Daily Sales Trend</h2>
+                    <div class="subtitle" style="margin-top:2px;">Revenue over the selected period</div>
+                </div>
+                <span class="badge badge-info">Daily Revenue</span>
+            </div>
+            <div id="dashboard-chart-container" class="chart-container">
+                <!-- SVG Chart injected below -->
             </div>
         </div>
 
         <!-- Attention Required Top Issues -->
         <div class="section-card">
             <div class="section-header">
-                <h2 class="section-title">Attention Required Today</h2>
+                <div>
+                    <h2 class="section-title">⚠️ Attention Required Today</h2>
+                    <div class="subtitle" style="margin-top:2px;">Top ${topAttentions.length} urgent alerts</div>
+                </div>
                 <a href="#attention" class="btn btn-secondary btn-sm" onclick="event.preventDefault(); loadPage('attention');">View All ${attention.count || 0} Alerts →</a>
             </div>
             ${topAttentions.length === 0 ? `
@@ -529,8 +568,8 @@ async function renderSalesPage(container) {
                             <tr>
                                 <th>Product</th>
                                 <th>Category</th>
-                                <th>Revenue</th>
-                                <th>Units</th>
+                                <th class="number-cell">Revenue</th>
+                                <th class="number-cell">Units</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -557,8 +596,8 @@ async function renderSalesPage(container) {
                             <tr>
                                 <th>Product</th>
                                 <th>Category</th>
-                                <th>Revenue</th>
-                                <th>Units</th>
+                                <th class="number-cell">Revenue</th>
+                                <th class="number-cell">Units</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1093,30 +1132,60 @@ function renderSalesTrendSVG(container, dailyTrend = []) {
         return;
     }
 
-    const salesPoints = trend.slice(-30).map(item => Number(item.sales_amount) || 0);
+    const recentTrend = trend.slice(-30);
+    const salesPoints = recentTrend.map(item => Number(item.sales_amount) || 0);
 
-    const maxVal = Math.max(...salesPoints, 1) * 1.1;
+    const maxVal = Math.max(...salesPoints, 100) * 1.15;
     const width = 600;
-    const height = 200;
-    const barWidth = (width / salesPoints.length) - 8;
+    const height = 210;
+    const paddingBottom = 26;
+    const paddingTop = 15;
+    const chartHeight = height - paddingBottom - paddingTop;
+    const barWidth = Math.max(6, (width / salesPoints.length) - 6);
 
+    // Generate SVG bars with blue gradient fill
     const svgBars = salesPoints.map((val, idx) => {
-        const barHeight = (val / maxVal) * (height - 30);
-        const x = idx * (barWidth + 8) + 10;
-        const y = height - barHeight - 20;
+        const barHeight = Math.max(4, (val / maxVal) * chartHeight);
+        const x = idx * (barWidth + 6) + 12;
+        const y = height - paddingBottom - barHeight;
+        const dateStr = recentTrend[idx].date || '';
 
         return `
-            <rect class="chart-bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4">
-                <title>${escapeHTML(trend.slice(-30)[idx].date)}: ${formatINR(val)}</title>
+            <rect class="chart-bar" x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="url(#barGrad)">
+                <title>${escapeHTML(dateStr)}: ${formatINR(val)}</title>
             </rect>
-            <text class="chart-axis-text" x="${x + barWidth/2}" y="${height - 4}" text-anchor="middle">${idx + 1}</text>
         `;
     }).join('');
 
+    // Generate ~5 evenly spaced X-axis date labels
+    const step = Math.ceil(recentTrend.length / 5);
+    const dateLabels = recentTrend.map((item, idx) => {
+        if (idx % step === 0 || idx === recentTrend.length - 1) {
+            const x = idx * (barWidth + 6) + 12 + barWidth / 2;
+            const dateParts = item.date ? item.date.split('-') : [];
+            const label = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : item.date;
+            return `<text class="chart-axis-text" x="${x}" y="${height - 6}" text-anchor="middle">${escapeHTML(label)}</text>`;
+        }
+        return '';
+    }).join('');
+
+    // Horizontal grid lines
+    const gridY1 = height - paddingBottom - chartHeight * 0.5;
+    const gridY2 = height - paddingBottom - chartHeight * 0.95;
+
     container.innerHTML = `
         <svg class="svg-chart" viewBox="0 0 ${width} ${height}">
-            <line x1="0" y1="${height - 20}" x2="${width}" y2="${height - 20}" stroke="#E2E8F0" stroke-width="1" />
+            <defs>
+                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#3B82F6"/>
+                    <stop offset="100%" stop-color="#1D4ED8"/>
+                </linearGradient>
+            </defs>
+            <line x1="10" y1="${gridY1}" x2="${width - 10}" y2="${gridY1}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4" />
+            <line x1="10" y1="${gridY2}" x2="${width - 10}" y2="${gridY2}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="4" />
+            <line x1="10" y1="${height - paddingBottom}" x2="${width - 10}" y2="${height - paddingBottom}" stroke="#CBD5E1" stroke-width="1" />
             ${svgBars}
+            ${dateLabels}
         </svg>
     `;
 }
