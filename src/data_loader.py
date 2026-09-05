@@ -381,3 +381,74 @@ class DataLoader:
         """Return validated inventory as pandas DataFrame."""
         import pandas as pd
         return pd.DataFrame(self.inventory)
+
+    def add_product(self, product_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add a new product to products.csv and create inventory records in inventory.csv.
+        Updates internal in-memory state so analytics recalculates dynamically.
+        """
+        # 1. Generate next product_id (e.g. PRD061)
+        existing_nums = []
+        for pid in self.product_ids:
+            if pid.startswith("PRD"):
+                try:
+                    existing_nums.append(int(pid[3:]))
+                except ValueError:
+                    pass
+        next_num = max(existing_nums, default=60) + 1
+        new_product_id = f"PRD{next_num:03d}"
+
+        new_product = {
+            "product_id": new_product_id,
+            "product_name": product_data["product_name"].strip(),
+            "category": product_data["category"].strip(),
+            "unit_price": float(product_data["unit_price"]),
+            "cost_price": float(product_data["cost_price"]),
+        }
+
+        # 2. Append to products.csv
+        products_file = os.path.join(self.data_dir, "products.csv")
+        with open(products_file, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                new_product["product_id"],
+                new_product["product_name"],
+                new_product["category"],
+                f"{new_product['unit_price']:.2f}",
+                f"{new_product['cost_price']:.2f}"
+            ])
+
+        # Update in-memory product state
+        self.products.append(new_product)
+        self.product_ids.add(new_product_id)
+        self.product_prices[new_product_id] = new_product["unit_price"]
+
+        # 3. Determine target stores and create inventory records
+        target_store_id = product_data.get("store_id")
+        stores_to_update = [s["store_id"] for s in self.stores]
+        if target_store_id and target_store_id in self.store_ids:
+            stores_to_update = [target_store_id]
+
+        initial_stock = int(product_data.get("initial_stock", 50))
+        today_str = datetime.date.today().isoformat()
+        new_inventory_records = []
+
+        inventory_file = os.path.join(self.data_dir, "inventory.csv")
+        with open(inventory_file, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            for sid in stores_to_update:
+                inv_record = {
+                    "store_id": sid,
+                    "product_id": new_product_id,
+                    "current_stock": initial_stock,
+                    "last_updated": today_str
+                }
+                writer.writerow([sid, new_product_id, initial_stock, today_str])
+                self.inventory.append(inv_record)
+                new_inventory_records.append(inv_record)
+
+        return {
+            "product": new_product,
+            "inventory": new_inventory_records
+        }
+

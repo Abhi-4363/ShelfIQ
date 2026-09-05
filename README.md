@@ -96,7 +96,7 @@ Gemini is optional for deterministic operation. To enable live AI explanations, 
 
 ```bash
 GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Do not commit `.env`. The repository includes `.env.example` only as a template.

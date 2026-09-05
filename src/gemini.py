@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Centralized Model & System Configuration
-DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 SYSTEM_PROMPT = """You are ShelfIQ, a retail sales and inventory decision-support assistant.
 
@@ -143,7 +143,7 @@ class GeminiCopilot:
     """
 
     def __init__(self, api_key: Optional[str] = None, model_name: str = DEFAULT_GEMINI_MODEL):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.api_key = api_key if api_key is not None else os.getenv("GEMINI_API_KEY")
         self.model_name = model_name
         self._client = None
 
@@ -388,10 +388,24 @@ Output ONLY the JSON object — no markdown code blocks, no extra explanation te
                 if "data_sufficiency" not in parsed:
                     parsed["data_sufficiency"] = deterministic_context.get("data_sufficiency", "SUFFICIENT")
 
-                # Validate data_sufficiency value
-                valid_sufficiency = {"SUFFICIENT", "LIMITED", "INSUFFICIENT"}
-                if parsed.get("data_sufficiency") not in valid_sufficiency:
-                    parsed["data_sufficiency"] = deterministic_context.get("data_sufficiency", "SUFFICIENT")
+                # Enrich parsed evidence with extra fields from deterministic context (e.g. recent_value, baseline_value)
+                det_evidence = deterministic_context.get("evidence", [])
+                det_ev_map = {
+                    (ev.get("product_id"), ev.get("store_id"), ev.get("metric")): ev
+                    for ev in det_evidence
+                }
+                for ev in parsed.get("evidence", []):
+                    if not isinstance(ev, dict):
+                        continue
+                    key = (ev.get("product_id"), ev.get("store_id"), ev.get("metric"))
+                    det_ev = det_ev_map.get(key)
+                    sup = ev.get("supporting_values") or {}
+                    for field in ["recent_value", "baseline_value", "percentage_change"]:
+                        if field not in ev or ev[field] is None:
+                            if det_ev and det_ev.get(field) is not None:
+                                ev[field] = det_ev[field]
+                            elif isinstance(sup, dict) and sup.get(field) is not None:
+                                ev[field] = sup[field]
 
                 return parsed
             else:
@@ -410,15 +424,31 @@ Output ONLY the JSON object — no markdown code blocks, no extra explanation te
                 "Malformed model response received.",
             )
         except Exception as e:
-            # Sanitize exception message to prevent API key leaks
+            # Sanitize exception message to prevent API key leaks and raw JSON dumps
             err_msg = str(e)
             if self.api_key and self.api_key in err_msg:
                 err_msg = err_msg.replace(self.api_key, "[REDACTED_API_KEY]")
+
+            # Handle quota/rate limit errors (429 RESOURCE_EXHAUSTED) gracefully
+            if any(k in err_msg for k in ["RESOURCE_EXHAUSTED", "429", "Quota exceeded", "quota"]):
+                clean_msg = "Gemini API error: 429 Rate/Quota limit exceeded. Showing deterministic evidence."
+            else:
+                # Strip embedded raw JSON payload or dict dumps if present
+                first_line = err_msg.split("\n")[0].strip()
+                if "{'error':" in first_line or '{"error":' in first_line:
+                    first_line = re.sub(r"[\{\'].*", "", first_line).strip()
+                if not first_line or len(first_line) > 120:
+                    first_line = first_line[:117] + "..." if len(first_line) > 120 else first_line
+                if not first_line.startswith("Gemini API error"):
+                    clean_msg = f"Gemini API error: {first_line}" if first_line else "Gemini API error occurred."
+                else:
+                    clean_msg = first_line
+
             return self._build_deterministic_fallback(
                 user_question,
                 intent,
                 deterministic_context,
-                f"Gemini API error: {err_msg}",
+                clean_msg,
             )
 
     def _build_deterministic_fallback(

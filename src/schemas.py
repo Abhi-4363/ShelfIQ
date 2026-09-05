@@ -102,3 +102,20 @@ class CopilotResponseSchema(BaseModel):
     recommendation: str
     assumptions: List[str] = Field(default_factory=list)
     data_sufficiency: str = "SUFFICIENT"
+
+
+class AddProductRequestSchema(BaseModel):
+    product_name: str = Field(..., description="Name of the product")
+    category: str = Field(..., description="Category (Beverages, Groceries, Snacks, Personal Care, Household, Others)")
+    unit_price: float = Field(..., gt=0, description="Selling price per unit")
+    cost_price: float = Field(..., gt=0, description="Cost price per unit")
+    store_id: Optional[str] = Field(None, description="Target store ID or None for all stores")
+    initial_stock: int = Field(50, ge=0, description="Initial inventory stock quantity")
+
+
+class AddProductResponseSchema(BaseModel):
+    status: str = "success"
+    message: str
+    product: Dict[str, Any]
+    inventory_added: List[Dict[str, Any]]
+

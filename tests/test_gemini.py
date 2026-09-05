@@ -136,6 +136,23 @@ class TestGeminiIntegration(unittest.TestCase):
         # Ensure secret API key is sanitized and redacted from output text
         self.assertNotIn("mock_key_secret_12345", res["answer"])
 
+    def test_resource_exhausted_quota_error_handling(self):
+        """Test clean message formatting when Gemini API hits 429 RESOURCE_EXHAUSTED quota limits."""
+        copilot = GeminiCopilot(api_key="mock_key_secret_12345")
+        copilot._client = MagicMock()
+        raw_429_err = (
+            "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': "
+            "'You exceeded your current quota, please check your plan and billing details.'}}"
+        )
+        copilot._client.models.generate_content.side_effect = Exception(raw_429_err)
+
+        context = {"findings": [{"product_name": "Milk", "store_name": "Store 1"}]}
+        res = copilot.generate_grounded_response("What needs attention today?", context)
+
+        self.assertIn("Gemini API error: 429 Rate/Quota limit exceeded", res["answer"])
+        # Ensure raw JSON dictionary dump is NOT present in answer
+        self.assertNotIn("{'error':", res["answer"])
+
     def test_deterministic_evidence_preserved_in_fallback(self):
         """Verify deterministic findings are preserved in fallback results."""
         copilot = GeminiCopilot(api_key="")
