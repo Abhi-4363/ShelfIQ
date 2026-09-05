@@ -71,3 +71,33 @@ class ErrorResponse(BaseModel):
 class CopilotRequestSchema(BaseModel):
     question: str
     store_id: Optional[str] = None
+    previous_intent: Optional[str] = None
+    previous_product_id: Optional[str] = None
+
+class SupportingNumberSchema(BaseModel):
+    product_name: Optional[str] = None
+    store_name: Optional[str] = None
+    metric: str
+    value: str
+
+class EvidenceItemSchema(BaseModel):
+    source: str
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
+    store_id: Optional[str] = None
+    store_name: Optional[str] = None
+    metric: str
+    value: Any
+    supporting_values: Optional[Dict[str, Any]] = None
+    period: Optional[str] = "Last 90 days"
+
+class CopilotResponseSchema(BaseModel):
+    intent: str
+    question: str
+    answer: str
+    key_points: List[str] = Field(default_factory=list)
+    supporting_numbers: List[Dict[str, Any]] = Field(default_factory=list)
+    evidence: List[Any] = Field(default_factory=list)
+    recommendation: str
+    assumptions: List[str] = Field(default_factory=list)
+    data_sufficiency: str = "SUFFICIENT"

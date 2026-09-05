@@ -620,3 +620,259 @@ body {
     font-size: 10px;
     fill: var(--text-muted);
 }
+
+/* Copilot Experience Styles */
+.copilot-container {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.copilot-header-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.sample-questions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.sample-pill {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sample-pill:hover {
+    background: var(--primary-light);
+    border-color: #BFDBFE;
+    color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.copilot-input-area {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.copilot-input-area input {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 14px;
+}
+
+/* Response card — main container for each Copilot answer */
+.copilot-response-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Section header label (ANSWER, SUPPORTING NUMBERS, EVIDENCE, etc.) */
+.copilot-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Divider between major sections */
+.copilot-section-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
+}
+
+/* Answer text block */
+.copilot-answer-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    font-weight: 500;
+    background: var(--primary-light);
+    border: 1px solid #BFDBFE;
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+}
+
+/* Grid of metric number cards */
+.supporting-numbers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.supporting-number-card {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Source citation badge */
+.source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 4px;
+    background: #E2E8F0;
+    color: #334155;
+    text-transform: uppercase;
+}
+
+/* Individual evidence item card */
+.evidence-item-card {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+/* Key-value rows inside evidence cards */
+.evidence-kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px dotted var(--border-color);
+}
+
+.evidence-kv-row:last-child {
+    border-bottom: none;
+}
+
+.evidence-kv-label {
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: capitalize;
+    min-width: 120px;
+}
+
+.evidence-kv-value {
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: right;
+}
+
+/* Data sufficiency section */
+.data-sufficiency-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.data-sufficiency-row.sufficient {
+    background: var(--state-healthy-bg);
+    border: 1px solid var(--state-healthy-border);
+    color: var(--state-healthy-text);
+}
+
+.data-sufficiency-row.limited {
+    background: var(--state-medium-bg);
+    border: 1px solid var(--state-medium-border);
+    color: var(--state-medium-text);
+}
+
+.data-sufficiency-row.insufficient {
+    background: var(--state-critical-bg);
+    border: 1px solid var(--state-critical-border);
+    color: var(--state-critical-text);
+}
+
+/* Inline Copilot error card (replaces alert() calls) */
+.copilot-error-card {
+    background: var(--state-critical-bg);
+    border: 1px solid var(--state-critical-border);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    color: var(--state-critical-text);
+    font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.copilot-error-card .error-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.copilot-error-card .error-body {
+    flex: 1;
+}
+
+.copilot-error-card .error-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.copilot-error-card .error-message {
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+/* Assumptions footer row */
+.copilot-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+    flex-wrap: wrap;
+}
+
+/* Loading pulse animation for Copilot */
+@keyframes copilot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.copilot-loading-text {
+    animation: copilot-pulse 1.5s ease-in-out infinite;
+}

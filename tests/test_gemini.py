@@ -43,17 +43,17 @@ class TestGeminiIntegration(unittest.TestCase):
         self.assertIn("evidence", res)
         self.assertIn("recommendation", res)
         self.assertIn("data_sufficiency", res)
-        self.assertIn("AI explanation is temporarily unavailable", res["answer"])
+        self.assertIn("AI explanation is currently unavailable", res["answer"])
 
     def test_intent_classification(self):
         """Test natural language question intent parsing."""
         copilot = GeminiCopilot(api_key="")
 
-        self.assertEqual(copilot.classify_question_intent("Which products are likely to run out?"), "STOCK_OUT_RISK")
+        self.assertEqual(copilot.classify_question_intent("Which products are likely to run out?"), "INVENTORY_RISK")
         self.assertEqual(copilot.classify_question_intent("Which products are selling slowly?"), "SLOW_MOVING")
         self.assertEqual(copilot.classify_question_intent("Which products are overstocked?"), "OVERSTOCK")
-        self.assertEqual(copilot.classify_question_intent("What should I review today?"), "ATTENTION_SUMMARY")
-        self.assertEqual(copilot.classify_question_intent("Which store has strongest growth?"), "STORE_GROWTH")
+        self.assertEqual(copilot.classify_question_intent("What should I review today?"), "GENERAL_ATTENTION")
+        self.assertEqual(copilot.classify_question_intent("Which store has strongest growth?"), "STORE_SUMMARY")
         self.assertEqual(copilot.classify_question_intent("How did Amul Milk perform this month?"), "PRODUCT_PERFORMANCE")
         self.assertEqual(copilot.classify_question_intent("What is the supplier lead time for Rice?"), "UNSUPPORTED_DATA")
 

@@ -652,46 +652,250 @@ function renderAttentionCardHTML(item) {
 // -------------------------------------------------------------
 // PAGE 5: AI COPILOT PLACEHOLDER
 // -------------------------------------------------------------
+let copilotHistory = [];
+let copilotLastIntent = null;
+let copilotLastProductId = null;
+
 function renderCopilotPage(container) {
     container.innerHTML = `
-        <div class="section-card" style="max-width: 800px; margin: 0 auto;">
-            <div class="section-header" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <h2 class="section-title" style="font-size: 22px;">🤖 Ask ShelfIQ Copilot</h2>
-                <p class="subtitle">Interactive natural-language decision support for your stores.</p>
+        <div class="copilot-container">
+            <div class="copilot-header-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div>
+                        <h2 style="font-size: 20px; font-weight: 700; color: var(--text-primary);">🤖 Ask ShelfIQ</h2>
+                        <p class="subtitle">Get evidence-based answers about your sales and inventory.</p>
+                    </div>
+                    <span class="badge badge-healthy">Grounded AI Active</span>
+                </div>
+
+                <div style="margin-top: 16px;">
+                    <div class="copilot-section-title">💡 Sample Questions You Can Ask:</div>
+                    <div class="sample-questions-grid">
+                        <div class="sample-pill" onclick="askCopilotQuestion('What needs attention today?')">
+                            <span>⚠️</span> What needs attention today?
+                        </div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('Which products may run out soon?')">
+                            <span>🚨</span> Which products may run out soon?
+                        </div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('What is overstocked?')">
+                            <span>📦</span> What is overstocked?
+                        </div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('Which products are selling slowly?')">
+                            <span>📉</span> Which products are selling slowly?
+                        </div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('Did sales spike anywhere?')">
+                            <span>🚀</span> Did sales spike anywhere?
+                        </div>
+                        <div class="sample-pill" onclick="askCopilotQuestion('How are my sales performing?')">
+                            <span>📊</span> How are my sales performing?
+                        </div>
+                    </div>
+                </div>
+
+                <form id="copilot-form" onsubmit="handleCopilotSubmit(event)" class="copilot-input-area">
+                    <input type="text" id="copilot-input" class="form-input" placeholder="Ask a question about inventory, sales, products, or stores..." autocomplete="off">
+                    <button type="submit" id="btn-copilot-submit" class="btn btn-primary">
+                        Send ➔
+                    </button>
+                </form>
             </div>
 
-            <div style="background: var(--bg-subtle); padding: 16px; border-radius: 8px; border: 1px dashed var(--border-color); margin-bottom: 24px;">
-                <p style="font-size: 13px; color: var(--text-secondary);">
-                    📌 <strong>Copilot Activation Status:</strong> Deterministic backend and analytics engines are active. Natural-language question understanding and grounded explanation generation will be activated in Phase 11 using Google Gemini API.
-                </p>
+            <!-- Loading State Container -->
+            <div id="copilot-loading" class="loading-state hidden">
+                <div style="font-size: 15px; font-weight: 600; color: var(--primary-color);">⌛ Analyzing your store data...</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Fetching deterministic evidence and synthesizing grounded decision support.</p>
             </div>
 
-            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text-muted); text-transform: uppercase;">Sample Questions You Can Ask:</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                <div class="kpi-card" style="cursor: pointer;" onclick="alert('Copilot natural language integration will be enabled in Phase 11.')">
-                    <div style="font-weight: 600; font-size: 13px;">"Which products are likely to run out?"</div>
-                    <div class="subtitle" style="font-size: 11px; margin-top: 4px;">Detects imminent stock-outs with days remaining.</div>
-                </div>
-                <div class="kpi-card" style="cursor: pointer;" onclick="alert('Copilot natural language integration will be enabled in Phase 11.')">
-                    <div style="font-weight: 600; font-size: 13px;">"What should I review today?"</div>
-                    <div class="subtitle" style="font-size: 11px; margin-top: 4px;">Prioritizes highest severity store findings.</div>
-                </div>
-                <div class="kpi-card" style="cursor: pointer;" onclick="alert('Copilot natural language integration will be enabled in Phase 11.')">
-                    <div style="font-weight: 600; font-size: 13px;">"Which products are not moving?"</div>
-                    <div class="subtitle" style="font-size: 11px; margin-top: 4px;">Identifies slow-velocity inventory.</div>
-                </div>
-                <div class="kpi-card" style="cursor: pointer;" onclick="alert('Copilot natural language integration will be enabled in Phase 11.')">
-                    <div style="font-weight: 600; font-size: 13px;">"What is the supplier lead time?"</div>
-                    <div class="subtitle" style="font-size: 11px; margin-top: 4px;">Demonstrates refusal on insufficient dataset information.</div>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 12px;">
-                <input type="text" class="form-input" placeholder="Type a manager question about sales, inventory, or stores..." style="flex: 1; padding: 12px;" disabled>
-                <button class="btn btn-primary" disabled>Ask ShelfIQ</button>
+            <!-- Results Viewport -->
+            <div id="copilot-results" style="display: flex; flex-direction: column; gap: 20px;">
+                ${copilotHistory.length === 0 ? `
+                    <div class="empty-state">
+                        <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
+                        <div style="font-weight: 600; color: var(--text-primary);">No questions asked yet.</div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Click any sample question above or type your query in the search box.</p>
+                    </div>
+                ` : copilotHistory.map(item => renderCopilotResponseHTML(item)).join('')}
             </div>
         </div>
     `;
+}
+
+async function handleCopilotSubmit(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('copilot-input');
+    if (!input || !input.value.trim()) return;
+
+    const q = input.value.trim();
+    input.value = '';
+    await askCopilotQuestion(q);
+}
+
+async function askCopilotQuestion(questionText) {
+    const loading = document.getElementById('copilot-loading');
+    const submitBtn = document.getElementById('btn-copilot-submit');
+
+    if (loading) loading.classList.remove('hidden');
+    if (submitBtn) submitBtn.disabled = true;
+
+    // Get active store filter from navbar dropdown if set
+    const storeSelect = document.getElementById('store-select');
+    const selectedStore = (storeSelect && storeSelect.value !== 'all') ? storeSelect.value : null;
+
+    try {
+        const payload = {
+            question: questionText,
+            store_id: selectedStore,
+            previous_intent: copilotLastIntent,
+            previous_product_id: copilotLastProductId
+        };
+
+        const res = await fetch('/api/ai/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Copilot query failed");
+        }
+
+        const data = await res.json();
+        copilotLastIntent = data.intent;
+
+        // Track product ID if present in evidence
+        if (data.evidence && data.evidence.length > 0 && data.evidence[0].product_id) {
+            copilotLastProductId = data.evidence[0].product_id;
+        }
+
+        copilotHistory.unshift(data);
+        const resultsContainer = document.getElementById('copilot-results');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = copilotHistory.map(item => renderCopilotResponseHTML(item)).join('');
+        }
+    } catch (err) {
+        const resultsContainer = document.getElementById('copilot-results');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = renderCopilotErrorHTML() + copilotHistory.map(item => renderCopilotResponseHTML(item)).join('');
+        }
+    } finally {
+        if (loading) loading.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = false;
+    }
+}
+
+function renderCopilotResponseHTML(data) {
+    const supportingNumbers = Array.isArray(data.supporting_numbers) ? data.supporting_numbers : [];
+    const evidence = Array.isArray(data.evidence) ? data.evidence : [];
+    const keyPoints = Array.isArray(data.key_points) ? data.key_points : [];
+    const assumptions = Array.isArray(data.assumptions) ? data.assumptions : [];
+    const suffClass = data.data_sufficiency === 'SUFFICIENT' ? 'badge-healthy' :
+                      data.data_sufficiency === 'LIMITED' ? 'badge-medium' : 'badge-critical';
+
+    const supportingNumbersHTML = supportingNumbers.length > 0 ? `
+        <div>
+            <div class="copilot-section-title">📊 Supporting Numbers</div>
+            <div class="supporting-numbers-grid">
+                ${supportingNumbers.map(num => `
+                    <div class="supporting-number-card">
+                        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${escapeHTML(num.product_name || 'Retail Metric')}</div>
+                        <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${escapeHTML(num.value)}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">${escapeHTML(num.metric)} (${escapeHTML(num.store_name || 'All Stores')})</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
+
+    const evidenceHTML = evidence.length > 0 ? `
+        <div>
+            <div class="copilot-section-title">🔎 Factual Evidence (Python Backend)</div>
+            ${evidence.map(ev => {
+                const sourceLabel = escapeHTML(ev.source || "Inventory analysis");
+                const pName = ev.product_name ? `${escapeHTML(ev.product_name)} (${escapeHTML(ev.product_id || '')})` : '';
+                const sName = ev.store_name ? `@ ${escapeHTML(ev.store_name)}` : '';
+                const details = ev.supporting_values ? escapeHTML(JSON.stringify(ev.supporting_values).replace(/["{}]/g, '')) : '';
+                return `
+                    <div class="evidence-item-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span class="source-badge">Source: ${sourceLabel}</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">Period: ${escapeHTML(ev.period || 'Last 90 days')}</span>
+                        </div>
+                        <div><strong>${pName} ${sName}</strong></div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            <strong>Metric:</strong> ${escapeHTML(ev.metric || 'metric_value')} = ${escapeHTML(ev.value)}
+                            ${details ? ` | <span>Details: ${details}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    ` : '';
+
+    return `
+        <div class="copilot-response-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                <div>
+                    <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">User Question</span>
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">"${escapeHTML(data.question || '')}"</h3>
+                </div>
+                <span class="badge ${suffClass}">Data: ${escapeHTML(data.data_sufficiency || 'INSUFFICIENT')}</span>
+            </div>
+
+            <!-- Executive Answer -->
+            <div>
+                <div class="copilot-section-title">💬 Answer</div>
+                <div class="copilot-answer-text">
+                    ${escapeHTML(data.answer || 'Analysis complete.')}
+                </div>
+            </div>
+
+            ${supportingNumbersHTML}
+            ${evidenceHTML}
+
+            <!-- Key Points -->
+            ${keyPoints.length > 0 ? `
+                <div>
+                    <div class="copilot-section-title">📌 Key Takeaways</div>
+                    <ul style="padding-left: 20px; font-size: 13px; color: var(--text-primary); display: flex; flex-direction: column; gap: 4px;">
+                        ${keyPoints.map(kp => `<li>${escapeHTML(kp)}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+
+            <!-- Recommended Action Callout -->
+            <div class="recommendation-box">
+                <strong>💡 Recommended Action:</strong> ${escapeHTML(data.recommendation || 'Continue standard inventory monitoring.')}
+            </div>
+
+            <!-- Assumptions & Transparency -->
+            <div style="font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 12px; display: flex; justify-content: space-between;">
+                <span><strong>Assumptions:</strong> ${escapeHTML(assumptions.length > 0 ? assumptions[0] : 'Based on factual daily sales velocity.')}</span>
+                <span><strong>Intent:</strong> ${escapeHTML(data.intent || 'UNKNOWN')}</span>
+            </div>
+        </div>
+    `;
+}
+
+function renderCopilotErrorHTML() {
+    return `
+        <div class="copilot-error-card">
+            <div class="error-icon">!</div>
+            <div class="error-body">
+                <div class="error-title">Copilot is temporarily unavailable</div>
+                <div class="error-message">Please try again in a moment. Backend details and credentials remain hidden.</div>
+            </div>
+        </div>
+    `;
+}
+
+function escapeHTML(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // -------------------------------------------------------------

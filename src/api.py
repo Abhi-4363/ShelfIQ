@@ -14,7 +14,8 @@ from src.schemas import (
     InventoryItemSchema,
     ProductDetailResponse,
     ErrorResponse,
-    CopilotRequestSchema
+    CopilotRequestSchema,
+    CopilotResponseSchema
 )
 
 def create_api_router(data_loader, analytics_engine, attention_engine, query_engine=None) -> APIRouter:
@@ -248,11 +249,14 @@ def create_api_router(data_loader, analytics_engine, attention_engine, query_eng
             "attention_items": attention_items
         }
 
-    @router.post("/ai/analyze")
+    @router.post("/ai/analyze", response_model=CopilotResponseSchema)
     async def analyze_question(payload: CopilotRequestSchema):
         """Analyze natural-language user question grounded in deterministic retail evidence."""
         if not payload.question or not payload.question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
+        if len(payload.question) > 500:
+            raise HTTPException(status_code=400, detail="Question is too long (maximum 500 characters).")
 
         if payload.store_id:
             _validate_store_id(payload.store_id)
@@ -261,7 +265,12 @@ def create_api_router(data_loader, analytics_engine, attention_engine, query_eng
             raise HTTPException(status_code=503, detail="AI Query Engine service is not initialized.")
 
         try:
-            res = query_engine.process_query(payload.question.strip(), store_id=payload.store_id)
+            res = query_engine.process_query(
+                question=payload.question.strip(),
+                store_id=payload.store_id,
+                previous_intent=payload.previous_intent,
+                previous_product_id=payload.previous_product_id
+            )
             return res
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Copilot query execution failed: {str(e)}")
