@@ -13,10 +13,11 @@ from src.schemas import (
     DateRange,
     InventoryItemSchema,
     ProductDetailResponse,
-    ErrorResponse
+    ErrorResponse,
+    CopilotRequestSchema
 )
 
-def create_api_router(data_loader, analytics_engine, attention_engine) -> APIRouter:
+def create_api_router(data_loader, analytics_engine, attention_engine, query_engine=None) -> APIRouter:
     router = APIRouter(prefix="/api")
 
     # Helper function to validate store_id
@@ -246,5 +247,23 @@ def create_api_router(data_loader, analytics_engine, attention_engine) -> APIRou
             "severity_counts": severity_counts,
             "attention_items": attention_items
         }
+
+    @router.post("/ai/analyze")
+    async def analyze_question(payload: CopilotRequestSchema):
+        """Analyze natural-language user question grounded in deterministic retail evidence."""
+        if not payload.question or not payload.question.strip():
+            raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
+        if payload.store_id:
+            _validate_store_id(payload.store_id)
+
+        if query_engine is None:
+            raise HTTPException(status_code=503, detail="AI Query Engine service is not initialized.")
+
+        try:
+            res = query_engine.process_query(payload.question.strip(), store_id=payload.store_id)
+            return res
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Copilot query execution failed: {str(e)}")
 
     return router

@@ -67,3 +67,7 @@ class ProductDetailResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
     error_type: str = "VALIDATION_OR_NOT_FOUND"
+
+class CopilotRequestSchema(BaseModel):
+    question: str
+    store_id: Optional[str] = None

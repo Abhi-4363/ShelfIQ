@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.data_loader import DataLoader
 from src.analytics import AnalyticsEngine
 from src.rules import AttentionEngine
+from src.gemini import GeminiCopilot
+from src.query_engine import QueryEngine
 from src.api import create_api_router
 
 app = FastAPI(
@@ -29,16 +31,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Data, Analytics, and Business Attention Engines on startup (cached in memory)
+# Initialize Data, Analytics, Business Attention, and Gemini Query Engines on startup
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 data_loader = DataLoader(DATA_DIR)
 is_valid, validation_result = data_loader.load_all_data()
 
 analytics_engine = AnalyticsEngine(data_loader)
 attention_engine = AttentionEngine(analytics_engine)
+gemini_copilot = GeminiCopilot()
+query_engine = QueryEngine(data_loader, analytics_engine, attention_engine, gemini_copilot)
 
 # Register API routes from src/api.py
-api_router = create_api_router(data_loader, analytics_engine, attention_engine)
+api_router = create_api_router(data_loader, analytics_engine, attention_engine, query_engine)
 app.include_router(api_router)
 
 # Serve static files for frontend UI
