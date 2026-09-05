@@ -19,7 +19,7 @@ class TestAPI(unittest.TestCase):
 
     def test_root_endpoint(self):
         """Test GET / endpoint."""
-        res = self.client.get("/")
+        res = self.client.get("/", headers={"accept": "application/json"})
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["name"], "ShelfIQ")

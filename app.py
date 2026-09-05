@@ -4,9 +4,9 @@ Main Application Entry Point (FastAPI backend + static web server)
 """
 
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.data_loader import DataLoader
@@ -47,18 +47,24 @@ if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/")
-async def root():
-    """Root endpoint returning ShelfIQ application status."""
+async def root(request: Request):
+    """Serve the primary single-page executive frontend UI on http://localhost:8000."""
     index_path = os.path.join(static_dir, "index.html")
-    # If browser requests HTML (Accept header contains text/html), serve UI
-    # Otherwise return app status JSON
-    return {
-        "name": "ShelfIQ",
-        "status": "running",
-        "version": "1.0.0",
-        "tagline": "Smarter shelves. Better decisions.",
-        "docs_url": "http://localhost:8000/docs"
-    }
+    accept = request.headers.get("accept", "")
+    
+    # If explicit JSON request header is passed, return app status JSON
+    if "application/json" in accept and "text/html" not in accept:
+        return JSONResponse({
+            "name": "ShelfIQ",
+            "status": "running",
+            "version": "1.0.0",
+            "tagline": "Smarter shelves. Better decisions.",
+            "docs_url": "http://localhost:8000/docs"
+        })
+
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return JSONResponse({"name": "ShelfIQ", "status": "running", "version": "1.0.0"})
 
 if __name__ == "__main__":
     import uvicorn

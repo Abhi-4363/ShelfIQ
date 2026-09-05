@@ -17,30 +17,31 @@
                 <div class="logo-icon">IQ</div>
                 <div class="brand-text">
                     <span class="brand-name">ShelfIQ</span>
-                    <span class="brand-tagline">Smarter shelves</span>
+                    <span class="brand-tagline">Smarter shelves. Better decisions.</span>
                 </div>
             </div>
 
             <nav class="nav-menu">
-                <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                <a href="#dashboard" class="nav-item active" data-page="dashboard" id="nav-dashboard">
                     <span class="nav-icon">📊</span> Dashboard
                 </a>
-                <a href="#inventory" class="nav-item" data-page="inventory">
+                <a href="#inventory" class="nav-item" data-page="inventory" id="nav-inventory">
                     <span class="nav-icon">📦</span> Inventory
                 </a>
-                <a href="#sales" class="nav-item" data-page="sales">
+                <a href="#sales" class="nav-item" data-page="sales" id="nav-sales">
                     <span class="nav-icon">📈</span> Sales
                 </a>
-                <a href="#attention" class="nav-item" data-page="attention">
+                <a href="#attention" class="nav-item" data-page="attention" id="nav-attention">
                     <span class="nav-icon">⚠️</span> Attention
+                    <span id="attention-badge" class="badge-count hidden">0</span>
                 </a>
-                <a href="#copilot" class="nav-item" data-page="copilot">
+                <a href="#copilot" class="nav-item" data-page="copilot" id="nav-copilot">
                     <span class="nav-icon">🤖</span> AI Copilot
                 </a>
             </nav>
 
             <div class="sidebar-footer">
-                <a href="#settings" class="nav-item" data-page="settings">
+                <a href="#settings" class="nav-item" data-page="settings" id="nav-settings">
                     <span class="nav-icon">⚙️</span> Settings
                 </a>
             </div>
@@ -56,25 +57,29 @@
 
                 <div class="controls-area">
                     <div class="control-group">
-                        <label for="store-select">Store</label>
+                        <label for="store-select">Store Filter</label>
                         <select id="store-select" class="form-select">
                             <option value="all">All Stores</option>
-                            <option value="hyderabad_central">Hyderabad Central</option>
-                            <option value="banjara_hills">Banjara Hills</option>
-                            <option value="kukatpally">Kukatpally</option>
-                            <option value="secunderabad">Secunderabad</option>
+                            <option value="STR001">Hyderabad Central</option>
+                            <option value="STR002">Banjara Hills</option>
+                            <option value="STR003">Kukatpally</option>
+                            <option value="STR004">Secunderabad</option>
                         </select>
                     </div>
 
                     <div class="control-group">
                         <label for="date-range-select">Date Range</label>
                         <select id="date-range-select" class="form-select">
+                            <option value="all">Full 90 Days</option>
                             <option value="last_30_days">Last 30 Days</option>
                             <option value="last_14_days">Last 14 Days</option>
                             <option value="last_7_days">Last 7 Days</option>
-                            <option value="this_month">This Month</option>
                         </select>
                     </div>
+
+                    <button id="btn-refresh" class="btn btn-secondary" title="Refresh Page Data">
+                        🔄 Refresh
+                    </button>
                 </div>
             </header>
 
@@ -82,6 +87,22 @@
                 <!-- Dynamic Page Content Injected via app.js -->
             </section>
         </main>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="product-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modal-product-name">Product Details</h2>
+                    <p id="modal-product-sub" class="subtitle">Product ID & Category</p>
+                </div>
+                <button id="modal-close" class="btn-close">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body">
+                <!-- Injected via app.js -->
+            </div>
+        </div>
     </div>
 
     <script src="/static/app.js"></script>
