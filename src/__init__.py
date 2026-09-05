@@ -1,0 +1,3 @@
+"""
+ShelfIQ Package Core Module
+"""

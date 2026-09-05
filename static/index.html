@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShelfIQ - Retail Sales & Inventory Copilot</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Persistent Left Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo-icon">IQ</div>
+                <div class="brand-text">
+                    <span class="brand-name">ShelfIQ</span>
+                    <span class="brand-tagline">Smarter shelves</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span> Dashboard
+                </a>
+                <a href="#inventory" class="nav-item" data-page="inventory">
+                    <span class="nav-icon">📦</span> Inventory
+                </a>
+                <a href="#sales" class="nav-item" data-page="sales">
+                    <span class="nav-icon">📈</span> Sales
+                </a>
+                <a href="#attention" class="nav-item" data-page="attention">
+                    <span class="nav-icon">⚠️</span> Attention
+                </a>
+                <a href="#copilot" class="nav-item" data-page="copilot">
+                    <span class="nav-icon">🤖</span> AI Copilot
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#settings" class="nav-item" data-page="settings">
+                    <span class="nav-icon">⚙️</span> Settings
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="page-title-area">
+                    <h1 id="page-title">Dashboard</h1>
+                    <p id="page-subtitle" class="subtitle">Good morning. Here's what needs your attention today.</p>
+                </div>
+
+                <div class="controls-area">
+                    <div class="control-group">
+                        <label for="store-select">Store</label>
+                        <select id="store-select" class="form-select">
+                            <option value="all">All Stores</option>
+                            <option value="hyderabad_central">Hyderabad Central</option>
+                            <option value="banjara_hills">Banjara Hills</option>
+                            <option value="kukatpally">Kukatpally</option>
+                            <option value="secunderabad">Secunderabad</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="date-range-select">Date Range</label>
+                        <select id="date-range-select" class="form-select">
+                            <option value="last_30_days">Last 30 Days</option>
+                            <option value="last_14_days">Last 14 Days</option>
+                            <option value="last_7_days">Last 7 Days</option>
+                            <option value="this_month">This Month</option>
+                        </select>
+                    </div>
+                </div>
+            </header>
+
+            <section id="content-viewport" class="viewport">
+                <!-- Dynamic Page Content Injected via app.js -->
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
